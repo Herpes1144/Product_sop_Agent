@@ -15,15 +15,10 @@ export function ChatPanel({
   onComposerChange,
   onSend
 }: ChatPanelProps) {
+  const canSend = composerValue.trim().length > 0;
+
   return (
     <section className="chat panel">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">中间下半区</p>
-          <h2>聊天窗口区</h2>
-        </div>
-      </div>
-
       <div className="chat-thread">
         {messages.map((message) => (
           <article
@@ -40,18 +35,24 @@ export function ChatPanel({
       </div>
 
       <div className="chat-composer">
-        <label htmlFor="chat-input">当前回复</label>
-        <textarea
-          id="chat-input"
-          aria-label="聊天输入框"
-          rows={4}
-          value={composerValue}
-          onChange={(event) => onComposerChange(event.target.value)}
-          placeholder="可结合 Agent 推荐回复进行编辑后发送。"
-        />
+        <div className="chat-composer__body">
+          <textarea
+            id="chat-input"
+            aria-label="聊天输入框"
+            rows={3}
+            value={composerValue}
+            onChange={(event) => onComposerChange(event.target.value)}
+            placeholder="输入回复内容"
+          />
+        </div>
         <div className="chat-composer__footer">
           <p>{lastOperationNote}</p>
-          <button type="button" className="send-button" onClick={onSend}>
+          <button
+            type="button"
+            className="send-button"
+            disabled={!canSend}
+            onClick={onSend}
+          >
             发送
           </button>
         </div>

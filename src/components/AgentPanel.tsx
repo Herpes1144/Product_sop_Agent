@@ -30,64 +30,52 @@ export function AgentPanel({
 }: AgentPanelProps) {
   return (
     <aside className="agent panel">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">右侧区域</p>
-          <h2>Agent 辅助区</h2>
-        </div>
-        {isAnalyzing ? <span className="loading-tag">分析中</span> : null}
+      <div className="agent__scroll">
+        <section className="agent-section">
+          <div className="agent-section__head">
+            <div className="agent-meta">
+              <span className="inline-pill">{ticket.problem_type}</span>
+              <StatusBadge status={ticket.status} />
+            </div>
+            {isAnalyzing ? <span className="loading-tag">分析中</span> : null}
+          </div>
+          <h3>AI问题摘要</h3>
+          <p>{ticket.ai_question_summary}</p>
+        </section>
+
+        <section className="agent-section">
+          <h3>SOP判断和推荐</h3>
+          <p>{ticket.sop_judgement}</p>
+          <p className="decision-callout">{getCurrentDecision(ticket)}</p>
+          <ul className="action-list">
+            {ticket.next_action.map((action) => (
+              <li key={action.type}>
+                <strong>{action.label}</strong>
+                <span>{action.description}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="agent-section agent-section--actions">
+          <div className="agent-section__head">
+            <h3>快捷操作</h3>
+            <span className="agent-note">仅推荐</span>
+          </div>
+          <div className="quick-actions">
+            {ticket.next_action.map((action) => (
+              <button
+                key={action.type}
+                type="button"
+                className="quick-action"
+                onClick={() => onQuickAction(action)}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
-
-      <div className="agent-note">
-        <span>推荐，不自动执行</span>
-      </div>
-
-      <section className="agent-section">
-        <h3>AI问题摘要</h3>
-        <p>{ticket.ai_question_summary}</p>
-      </section>
-
-      <section className="agent-section">
-        <h3>问题分类</h3>
-        <div className="agent-meta">
-          <span className="inline-pill">{ticket.problem_type}</span>
-          <StatusBadge status={ticket.status} />
-        </div>
-      </section>
-
-      <section className="agent-section">
-        <h3>SOP判断依据</h3>
-        <p>{ticket.sop_judgement}</p>
-      </section>
-
-      <section className="agent-section">
-        <h3>建议动作</h3>
-        <p className="decision-callout">{getCurrentDecision(ticket)}</p>
-        <ul className="action-list">
-          {ticket.next_action.map((action) => (
-            <li key={action.type}>
-              <strong>{action.label}</strong>
-              <span>{action.description}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="agent-section">
-        <h3>快捷操作推荐</h3>
-        <div className="quick-actions">
-          {ticket.next_action.map((action) => (
-            <button
-              key={action.type}
-              type="button"
-              className="quick-action"
-              onClick={() => onQuickAction(action)}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </section>
     </aside>
   );
 }

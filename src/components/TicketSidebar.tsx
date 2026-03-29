@@ -18,45 +18,45 @@ export function TicketSidebar({
 }: TicketSidebarProps) {
   return (
     <aside className="sidebar panel">
-      <div className="sidebar__header">
-        <p className="eyebrow">工单展示侧边栏</p>
-        <h1>质量投诉分流工作台</h1>
-        <p className="sidebar__description">
-          当前仅展示商品质量投诉分流场景的 mock 工单。
-        </p>
-      </div>
-      <label className="field">
-        <span>搜索工单</span>
+      <div className="sidebar__toolbar">
         <input
+          aria-label="搜索工单"
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索单号、问题类型、投诉内容"
+          placeholder="搜索工单"
         />
-      </label>
+      </div>
       <div className="ticket-list" aria-label="工单列表">
-        {tickets.map((ticket) => {
-          const isActive = ticket.id === selectedTicketId;
+        {tickets.length > 0 ? (
+          tickets.map((ticket) => {
+            const isActive = ticket.id === selectedTicketId;
 
-          return (
-            <button
-              key={ticket.id}
-              type="button"
-              className={`ticket-card ${isActive ? "ticket-card--active" : ""}`}
-              aria-label={`工单 ${ticket.ticketNo}`}
-              onClick={() => onSelectTicket(ticket.id)}
-            >
-              <div className="ticket-card__top">
-                <strong>{ticket.ticketNo}</strong>
-                <StatusBadge status={ticket.status} />
-              </div>
-              <p className="ticket-card__type">{ticket.problem_type}</p>
-              <div className="ticket-card__meta">
-                <span>{ticket.createdAt}</span>
-                <span>优先级 {ticket.priority}</span>
-              </div>
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={ticket.id}
+                type="button"
+                className={`ticket-row ${isActive ? "ticket-row--active" : ""}`}
+                aria-label={`工单 ${ticket.ticketNo}`}
+                onClick={() => onSelectTicket(ticket.id)}
+              >
+                <div className="ticket-row__head">
+                  <strong>{ticket.ticketNo}</strong>
+                  <span className="ticket-row__priority">{ticket.priority}</span>
+                </div>
+                <p className="ticket-row__type">{ticket.problem_type}</p>
+                <div className="ticket-row__foot">
+                  <StatusBadge status={ticket.status} />
+                  <span>{ticket.createdAt}</span>
+                </div>
+              </button>
+            );
+          })
+        ) : (
+          <div className="empty-state">
+            <strong>未找到匹配工单</strong>
+            <p>请调整搜索关键词后重试。</p>
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -4,7 +4,6 @@ import { ChatPanel } from "./components/ChatPanel";
 import { RawInfoPanel } from "./components/RawInfoPanel";
 import { TicketSidebar } from "./components/TicketSidebar";
 import { mockTickets } from "./mock/tickets";
-import { statusLabelMap } from "./mock/status-map";
 import type {
   ActionItem,
   ChatMessage,
@@ -71,9 +70,7 @@ export default function App() {
   const [isAgentAnalyzing, setIsAgentAnalyzing] = useState(false);
   const [historyView, setHistoryView] = useState<"chat" | "record">("chat");
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [lastOperationNote, setLastOperationNote] = useState(
-    "可在此结合 AI 推荐回复后发送，不会自动代发。"
-  );
+  const [lastOperationNote, setLastOperationNote] = useState("可编辑后发送。");
 
   const filteredTickets = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -206,43 +203,43 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <TicketSidebar
-        tickets={filteredTickets}
-        selectedTicketId={selectedTicketId}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        onSelectTicket={handleSelectTicket}
-      />
-
-      <main className="workspace">
-        <RawInfoPanel
-          ticket={selectedTicket}
-          isLoading={isContentLoading}
-          historyView={historyView}
-          isHistoryExpanded={isHistoryExpanded}
-          onToggleHistory={() => setIsHistoryExpanded((current) => !current)}
-          onHistoryViewChange={setHistoryView}
+    <div className="app-frame">
+      <div className="app-shell">
+        <TicketSidebar
+          tickets={filteredTickets}
+          selectedTicketId={selectedTicketId}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onSelectTicket={handleSelectTicket}
         />
 
-        <AgentPanel
-          ticket={selectedTicket}
-          isAnalyzing={isAgentAnalyzing}
-          onQuickAction={handleQuickAction}
-        />
+        <main className="workspace">
+          <div className="workspace-main">
+            <RawInfoPanel
+              ticket={selectedTicket}
+              isLoading={isContentLoading}
+              historyView={historyView}
+              isHistoryExpanded={isHistoryExpanded}
+              onToggleHistory={() => setIsHistoryExpanded((current) => !current)}
+              onHistoryViewChange={setHistoryView}
+            />
 
-        <ChatPanel
-          messages={selectedTicket.chat_history}
-          composerValue={composerValue}
-          lastOperationNote={lastOperationNote}
-          onComposerChange={setComposerValue}
-          onSend={handleSend}
-        />
-      </main>
+            <ChatPanel
+              messages={selectedTicket.chat_history}
+              composerValue={composerValue}
+              lastOperationNote={lastOperationNote}
+              onComposerChange={setComposerValue}
+              onSend={handleSend}
+            />
+          </div>
 
-      <footer className="footer-note">
-        当前状态仅保留 {Object.values(statusLabelMap).join(" / ")}；“继续处理”仅作为路径提示，不作为状态。
-      </footer>
+          <AgentPanel
+            ticket={selectedTicket}
+            isAnalyzing={isAgentAnalyzing}
+            onQuickAction={handleQuickAction}
+          />
+        </main>
+      </div>
     </div>
   );
 }
