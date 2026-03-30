@@ -1,24 +1,57 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { ChatMessage } from "../types/workbench";
+
+export type ChatSizeMode = "collapsed" | "default" | "expanded" | "custom";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
   composerValue: string;
   lastOperationNote: string;
+  sizeMode: ChatSizeMode;
+  isResizing: boolean;
   onComposerChange: (value: string) => void;
   onSend: () => void;
+  onResizeDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
 export function ChatPanel({
   messages,
   composerValue,
   lastOperationNote,
+  sizeMode,
+  isResizing,
   onComposerChange,
-  onSend
+  onSend,
+  onResizeDragStart
 }: ChatPanelProps) {
   const canSend = composerValue.trim().length > 0;
 
   return (
-    <section className="chat panel">
+    <section
+      className={`chat panel chat--${sizeMode} ${isResizing ? "chat--resizing" : ""}`}
+      role="region"
+      aria-label="客户沟通区"
+      data-chat-size-mode={sizeMode}
+    >
+      <div className="chat-toolbar">
+        <div className="chat-toolbar__title-block">
+          <div className="chat-toolbar__title-row">
+            <strong>客户沟通区</strong>
+          </div>
+          <p>拖拽下方分隔条调整聊天区高度。</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="chat-resize-handle"
+        aria-label="拖拽调整聊天区高度"
+        title="拖拽调整聊天区高度"
+        onPointerDown={onResizeDragStart}
+      >
+        <span aria-hidden="true" />
+      </button>
+
       <div className="chat-thread">
         {messages.map((message) => (
           <article

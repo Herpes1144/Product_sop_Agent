@@ -137,13 +137,18 @@ export function RawInfoPanel({
             <button
               type="button"
               className="text-button"
+              aria-expanded={isHistoryExpanded}
+              aria-controls="ticket-history-panel"
               onClick={onToggleHistory}
             >
               {isHistoryExpanded ? "收起" : "展开"}
             </button>
           </div>
           {isHistoryExpanded ? (
-            <div className="history-card">
+            <div
+              id="ticket-history-panel"
+              className="history-card"
+            >
               <div className="history-card__tabs" role="tablist" aria-label="历史记录切换">
                 <button
                   type="button"

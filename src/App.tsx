@@ -1,6 +1,13 @@
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent
+} from "react";
 import { AgentPanel } from "./components/AgentPanel";
-import { ChatPanel } from "./components/ChatPanel";
+import { ChatPanel, type ChatSizeMode } from "./components/ChatPanel";
 import { RawInfoPanel } from "./components/RawInfoPanel";
 import { TicketSidebar } from "./components/TicketSidebar";
 import { mockTickets } from "./mock/tickets";
@@ -15,6 +22,9 @@ import { formatSearchableText } from "./utils/format";
 
 const CONTENT_LOADING_MS = 450;
 const AGENT_LOADING_MS = 900;
+const CHAT_PANEL_MIN_HEIGHT = 220;
+const CHAT_PANEL_DEFAULT_HEIGHT = 272;
+const RAW_INFO_MIN_HEIGHT = 248;
 
 function cloneTicket(ticket: ComplaintTicket): ComplaintTicket {
   return {
@@ -59,6 +69,19 @@ function updateTicketState(
   return tickets.map((ticket) => (ticket.id === ticketId ? updater(ticket) : ticket));
 }
 
+function clampChatHeight(nextHeight: number, containerHeight: number): number {
+  if (containerHeight <= 0) {
+    return Math.max(CHAT_PANEL_MIN_HEIGHT, nextHeight);
+  }
+
+  const maxHeight = Math.max(
+    CHAT_PANEL_MIN_HEIGHT,
+    containerHeight - RAW_INFO_MIN_HEIGHT
+  );
+
+  return Math.min(Math.max(nextHeight, CHAT_PANEL_MIN_HEIGHT), maxHeight);
+}
+
 export default function App() {
   const [tickets, setTickets] = useState<ComplaintTicket[]>(() =>
     mockTickets.map(cloneTicket)
@@ -71,6 +94,12 @@ export default function App() {
   const [historyView, setHistoryView] = useState<"chat" | "record">("chat");
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [lastOperationNote, setLastOperationNote] = useState("可编辑后发送。");
+  const [chatSizeMode, setChatSizeMode] = useState<ChatSizeMode>("default");
+  const [chatPanelHeight, setChatPanelHeight] = useState(CHAT_PANEL_DEFAULT_HEIGHT);
+  const [workspaceMainHeight, setWorkspaceMainHeight] = useState(0);
+  const [isChatResizing, setIsChatResizing] = useState(false);
+  const workspaceMainRef = useRef<HTMLDivElement | null>(null);
+  const chatResizeStateRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
   const filteredTickets = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -91,6 +120,64 @@ export default function App() {
 
   const selectedTicket =
     tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0];
+
+  useEffect(() => {
+    function syncWorkspaceMainHeight() {
+      if (!workspaceMainRef.current) {
+        return;
+      }
+
+      setWorkspaceMainHeight(workspaceMainRef.current.clientHeight);
+    }
+
+    syncWorkspaceMainHeight();
+    window.addEventListener("resize", syncWorkspaceMainHeight);
+
+    return () => {
+      window.removeEventListener("resize", syncWorkspaceMainHeight);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (chatSizeMode === "custom") {
+      setChatPanelHeight((current) => clampChatHeight(current, workspaceMainHeight));
+      return;
+    }
+
+    setChatPanelHeight(clampChatHeight(CHAT_PANEL_DEFAULT_HEIGHT, workspaceMainHeight));
+  }, [chatSizeMode, workspaceMainHeight]);
+
+  useEffect(() => {
+    if (!isChatResizing) {
+      return;
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      const resizeState = chatResizeStateRef.current;
+
+      if (!resizeState) {
+        return;
+      }
+
+      const delta = resizeState.startY - event.clientY;
+      setChatPanelHeight(
+        clampChatHeight(resizeState.startHeight + delta, workspaceMainHeight)
+      );
+    }
+
+    function handlePointerUp() {
+      chatResizeStateRef.current = null;
+      setIsChatResizing(false);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isChatResizing, workspaceMainHeight]);
 
   function handleSelectTicket(ticketId: string) {
     if (ticketId === selectedTicketId) {
@@ -202,6 +289,21 @@ export default function App() {
     }, AGENT_LOADING_MS);
   }
 
+  function handleChatResizeStart(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    chatResizeStateRef.current = {
+      startY: event.clientY,
+      startHeight: chatPanelHeight
+    };
+    setChatSizeMode("custom");
+    setIsChatResizing(true);
+  }
+
   return (
     <div className="app-frame">
       <div className="app-shell">
@@ -214,7 +316,15 @@ export default function App() {
         />
 
         <main className="workspace">
-          <div className="workspace-main">
+          <div
+            ref={workspaceMainRef}
+            className={`workspace-main ${isChatResizing ? "workspace-main--resizing" : ""}`}
+            style={
+              {
+                "--chat-panel-height": `${chatPanelHeight}px`
+              } as CSSProperties
+            }
+          >
             <RawInfoPanel
               ticket={selectedTicket}
               isLoading={isContentLoading}
@@ -228,8 +338,11 @@ export default function App() {
               messages={selectedTicket.chat_history}
               composerValue={composerValue}
               lastOperationNote={lastOperationNote}
+              sizeMode={chatSizeMode}
+              isResizing={isChatResizing}
               onComposerChange={setComposerValue}
               onSend={handleSend}
+              onResizeDragStart={handleChatResizeStart}
             />
           </div>
 
