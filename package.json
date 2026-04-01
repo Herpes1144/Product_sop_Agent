@@ -5,22 +5,29 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
+    "server": "node ./node_modules/tsx/dist/cli.mjs server/index.ts",
+    "dev:full": "node ./node_modules/concurrently/dist/bin/concurrently.js -k \"npm:server\" \"npm:dev\"",
     "build": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json && node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.node.json && node ./node_modules/vite/bin/vite.js build",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "test": "node ./node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.30.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^24.5.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.2.1",
+    "dotenv": "^16.6.1",
     "jsdom": "^25.0.1",
+    "tsx": "^4.20.5",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vitest": "^2.1.1"

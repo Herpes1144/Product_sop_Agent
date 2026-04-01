@@ -21,16 +21,18 @@ export function RawInfoPanel({
   onHistoryViewChange
 }: RawInfoPanelProps) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const attachmentAssets = ticket.attachment_assets ?? [];
   const attachmentSlots = useMemo(
     () =>
       Array.from(
         { length: Math.max(3, ticket.attachment_list.length || 0) },
         (_, index) => ({
           index,
-          hasAttachment: index < ticket.attachment_list.length
+          hasAttachment: index < ticket.attachment_list.length,
+          asset: attachmentAssets[index] ?? null
         })
       ),
-    [ticket.attachment_list]
+    [attachmentAssets, ticket.attachment_list]
   );
 
   useEffect(() => {
@@ -50,6 +52,13 @@ export function RawInfoPanel({
           <div className="info-card__header">
             <h3>客户原始投诉内容</h3>
           </div>
+          <div className="inline-status-row">
+            {ticket.complaint_type ? <span className="inline-pill">{ticket.complaint_type}</span> : null}
+            {ticket.path_tag ? <span className="inline-pill inline-pill--soft">{ticket.path_tag}</span> : null}
+            {ticket.reanalyze_pending ? (
+              <span className="inline-pill inline-pill--soft">待重新分析</span>
+            ) : null}
+          </div>
           <div className="complaint-layout">
             <p className="complaint-text">{ticket.complaint_text}</p>
             <div className="attachment-panel" aria-label="附件展示区">
@@ -60,11 +69,30 @@ export function RawInfoPanel({
                       key={slot.index}
                       type="button"
                       className="attachment-thumb"
+                      aria-label={`预览附件 ${slot.asset?.name ?? `附件 ${String(slot.index + 1).padStart(2, "0")}`}`}
                       onClick={() => setPreviewIndex(slot.index)}
                     >
-                      <span className="attachment-thumb__canvas" aria-hidden="true" />
+                      {slot.asset?.previewUrl ? (
+                        slot.asset.kind === "video" ? (
+                          <video
+                            className="attachment-thumb__media"
+                            src={slot.asset.previewUrl}
+                            muted
+                            playsInline
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <img
+                            className="attachment-thumb__media"
+                            src={slot.asset.previewUrl}
+                            alt=""
+                          />
+                        )
+                      ) : (
+                        <span className="attachment-thumb__canvas" aria-hidden="true" />
+                      )}
                       <span className="attachment-thumb__label">
-                        附件 {String(slot.index + 1).padStart(2, "0")}
+                        {slot.asset?.name ?? `附件 ${String(slot.index + 1).padStart(2, "0")}`}
                       </span>
                     </button>
                   ) : (
@@ -127,6 +155,10 @@ export function RawInfoPanel({
               <dd>
                 <StatusBadge status={ticket.status} />
               </dd>
+            </div>
+            <div>
+              <dt>当前路径标签</dt>
+              <dd>{ticket.path_tag ?? "待初判"}</dd>
             </div>
           </dl>
         </article>
@@ -207,7 +239,10 @@ export function RawInfoPanel({
           />
           <div className="attachment-preview__panel">
             <div className="attachment-preview__header">
-              <strong>附件 {String(previewIndex + 1).padStart(2, "0")}</strong>
+              <strong>
+                {attachmentAssets[previewIndex]?.name ??
+                  `附件 ${String(previewIndex + 1).padStart(2, "0")}`}
+              </strong>
               <button
                 type="button"
                 className="text-button"
@@ -216,9 +251,26 @@ export function RawInfoPanel({
                 关闭
               </button>
             </div>
-            <div className="attachment-preview__surface" aria-hidden="true">
-              <span>附件 {String(previewIndex + 1).padStart(2, "0")}</span>
-            </div>
+            {attachmentAssets[previewIndex]?.previewUrl ? (
+              attachmentAssets[previewIndex]?.kind === "video" ? (
+                <video
+                  className="attachment-preview__media"
+                  src={attachmentAssets[previewIndex]?.previewUrl}
+                  controls
+                  playsInline
+                />
+              ) : (
+                <img
+                  className="attachment-preview__media"
+                  src={attachmentAssets[previewIndex]?.previewUrl}
+                  alt={attachmentAssets[previewIndex]?.name ?? ""}
+                />
+              )
+            ) : (
+              <div className="attachment-preview__surface" aria-hidden="true">
+                <span>附件 {String(previewIndex + 1).padStart(2, "0")}</span>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

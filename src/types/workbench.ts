@@ -52,11 +52,23 @@ export interface ActionItem {
   composerTemplate?: string;
 }
 
+export interface TicketAttachmentAsset {
+  id: string;
+  name: string;
+  kind: "image" | "video";
+  mimeType: string;
+  previewUrl: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface ComplaintTicket {
   id: string;
   ticketNo: string;
   createdAt: string;
   priority: PriorityLevel;
+  complaint_type?: string;
+  path_tag?: string;
   complaint_text: string;
   product_info: ProductInfo;
   order_id: string;
@@ -69,5 +81,15 @@ export interface ComplaintTicket {
   chat_history: ChatMessage[];
   processing_record: ProcessingRecordItem[];
   attachment_list: string[];
+  attachment_assets?: TicketAttachmentAsset[];
   recording_summary: string;
+  aiSuggestedStatus?: TicketStatus | null;
+  reanalyze_available?: boolean;
+  reanalyze_pending?: boolean;
+  analysis_used_fallback?: boolean;
+  analysis_fallback_reason?: string | null;
+  manual_guidance?: string;
+  customer_intent_summary?: string;
+  analyzed_attachment_count?: number;
+  primary_action?: NextActionType | null;
 }

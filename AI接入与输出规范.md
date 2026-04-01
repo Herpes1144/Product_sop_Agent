@@ -10,7 +10,7 @@
 
 ## 2. 环境变量
 ```bash
-DASHSCOPE_API_KEY=sk-68dbec93c3654dc29d39c4925e71bffc
+DASHSCOPE_API_KEY=your_dashscope_api_key
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 DASHSCOPE_MODEL=qwen-plus
 ```
