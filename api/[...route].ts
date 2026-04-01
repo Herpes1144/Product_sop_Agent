@@ -1,7 +1,7 @@
 import { config as loadEnv } from "dotenv";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { handleApiRequest } from "../server/http/router";
+import { handleApiRequest } from "../server/http/router.js";
 
 const localEnvPath = resolve(process.cwd(), ".env.local");
 const defaultEnvPath = resolve(process.cwd(), ".env");

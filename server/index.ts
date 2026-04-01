@@ -7,8 +7,8 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { config as loadEnv } from "dotenv";
-import { createConfiguredBackendService } from "./data/backend";
-import { handleApiRequest } from "./http/router";
+import { createConfiguredBackendService } from "./data/backend.js";
+import { handleApiRequest } from "./http/router.js";
 
 const localEnvPath = resolve(process.cwd(), ".env.local");
 const defaultEnvPath = resolve(process.cwd(), ".env");

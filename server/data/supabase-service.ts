@@ -1,6 +1,6 @@
 import { extname } from "node:path";
-import { buildActionItems, getActionDefinition } from "../../src/mock/action-map";
-import type { AiAnalysisResult } from "../../src/types/ai";
+import { buildActionItems, getActionDefinition } from "../../src/mock/action-map.js";
+import type { AiAnalysisResult } from "../../src/types/ai.js";
 import type {
   AnalysisSnapshot,
   AttachmentAsset,
@@ -12,19 +12,19 @@ import type {
   ProductRecord,
   SandboxEvent,
   SandboxState
-} from "../../src/types/sandbox";
+} from "../../src/types/sandbox.js";
 import type {
   ChatMessage,
   ComplaintTicket,
   NextActionType,
   ProcessingRecordItem,
   TicketStatus
-} from "../../src/types/workbench";
-import { SUPABASE_ATTACHMENT_BUCKET, getSupabaseAdminClient, isSupabaseConfigured } from "./supabase-client";
+} from "../../src/types/workbench.js";
+import { SUPABASE_ATTACHMENT_BUCKET, getSupabaseAdminClient, isSupabaseConfigured } from "./supabase-client.js";
 import type {
   CreateMockBackendServiceOptions,
   MockBackendService
-} from "./service";
+} from "./service.js";
 
 interface MutationResult {
   complaint: ComplaintCase;

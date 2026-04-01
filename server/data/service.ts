@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { buildActionItems, getActionDefinition } from "../../src/mock/action-map";
-import { mockTickets } from "../../src/mock/tickets";
-import type { AiAnalysisResult } from "../../src/types/ai";
+import { buildActionItems, getActionDefinition } from "../../src/mock/action-map.js";
+import { mockTickets } from "../../src/mock/tickets.js";
+import type { AiAnalysisResult } from "../../src/types/ai.js";
 import type {
   AnalysisSnapshot,
   AttachmentAsset,
@@ -16,14 +16,14 @@ import type {
   ProductRecord,
   SandboxEvent,
   SandboxState
-} from "../../src/types/sandbox";
+} from "../../src/types/sandbox.js";
 import type {
   ChatMessage,
   ComplaintTicket,
   NextActionType,
   ProcessingRecordItem,
   TicketStatus
-} from "../../src/types/workbench";
+} from "../../src/types/workbench.js";
 
 interface StoredAttachmentInput {
   name: string;

@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { analyzeTicketWithAi, generateReplyWithAi } from "../ai/service";
-import { getProviderHealth } from "../ai/provider";
-import { buildActionCatalog } from "../../src/mock/action-map";
-import type { AnalyzeTicketRequest, GenerateReplyRequest } from "../../src/types/ai";
-import type { ComplaintTicket } from "../../src/types/workbench";
-import { createConfiguredBackendService } from "../data/backend";
-import { toWorkbenchTicket } from "../data/service";
+import { analyzeTicketWithAi, generateReplyWithAi } from "../ai/service.js";
+import { getProviderHealth } from "../ai/provider.js";
+import { buildActionCatalog } from "../../src/mock/action-map.js";
+import type { AnalyzeTicketRequest, GenerateReplyRequest } from "../../src/types/ai.js";
+import type { ComplaintTicket } from "../../src/types/workbench.js";
+import { createConfiguredBackendService } from "../data/backend.js";
+import { toWorkbenchTicket } from "../data/service.js";
 
 let backendService: ReturnType<typeof createConfiguredBackendService> | null = null;
 

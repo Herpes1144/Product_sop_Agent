@@ -1,11 +1,11 @@
-import { actionDefinitionMap } from "../../src/mock/action-map";
+import { actionDefinitionMap } from "../../src/mock/action-map.js";
 import type {
   AiAnalysisResult,
   AnalysisFallbackReason,
   ReplySuggestionResult,
   RecommendedResultType
-} from "../../src/types/ai";
-import type { ComplaintTicket, NextActionType } from "../../src/types/workbench";
+} from "../../src/types/ai.js";
+import type { ComplaintTicket, NextActionType } from "../../src/types/workbench.js";
 
 const actionTypes = Object.keys(actionDefinitionMap) as NextActionType[];
 

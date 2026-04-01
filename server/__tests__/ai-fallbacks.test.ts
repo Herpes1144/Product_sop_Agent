@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildFallbackAnalysis, finalizeAnalysisResult, fallbackReplySuggestion } from "../ai/fallbacks";
-import type { ComplaintTicket } from "../../src/types/workbench";
+import { buildFallbackAnalysis, finalizeAnalysisResult, fallbackReplySuggestion } from "../ai/fallbacks.js";
+import type { ComplaintTicket } from "../../src/types/workbench.js";
 
 describe("AI 结果兜底规则", () => {
   it("当模型要求补材料时，会强制将主动作修正为补材料类", () => {

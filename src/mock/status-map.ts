@@ -1,4 +1,4 @@
-import type { TicketStatus } from "../types/workbench";
+import type { TicketStatus } from "../types/workbench.js";
 
 export const statusLabelMap: Record<TicketStatus, string> = {
   pending: "待处理",

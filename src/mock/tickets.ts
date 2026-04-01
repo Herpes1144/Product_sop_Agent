@@ -1,4 +1,4 @@
-import type { ComplaintTicket } from "../types/workbench";
+import type { ComplaintTicket } from "../types/workbench.js";
 
 export const mockTickets: ComplaintTicket[] = [
   {

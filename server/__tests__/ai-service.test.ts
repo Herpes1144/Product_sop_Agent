@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildAnalysisInput } from "../ai/service";
-import type { ComplaintTicket } from "../../src/types/workbench";
+import { buildAnalysisInput } from "../ai/service.js";
+import type { ComplaintTicket } from "../../src/types/workbench.js";
 
 const baseTicket: ComplaintTicket = {
   id: "ticket-service-1",
