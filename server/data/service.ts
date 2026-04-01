@@ -41,7 +41,7 @@ interface MutationResult {
   ticket: ComplaintTicket;
 }
 
-interface CreateMockBackendServiceOptions {
+export interface CreateMockBackendServiceOptions {
   rootDir?: string;
   seedDir?: string;
   nowLabel?: () => string;

@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/client",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/workbench",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|assets|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
