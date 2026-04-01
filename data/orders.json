@@ -1,0 +1,92 @@
+[
+  {
+    "id": "order-new-1",
+    "orderId": "TB20260331001",
+    "customerId": "customer-1",
+    "productId": "product-1",
+    "orderStatus": "已签收",
+    "productInfo": {
+      "name": "多功能电烤盘",
+      "model": "Grill-One M2",
+      "specification": "奶油白 / 3档火力",
+      "category": "厨房小家电",
+      "receiveTime": "2026-03-30 20:16",
+      "isHighRisk": false
+    }
+  },
+  {
+    "id": "order-new-2",
+    "orderId": "TB20260331002",
+    "customerId": "customer-1",
+    "productId": "product-2",
+    "orderStatus": "已签收",
+    "productInfo": {
+      "name": "智能热水壶",
+      "model": "Kettle Flow",
+      "specification": "米白色 / 1.5L",
+      "category": "厨房小家电",
+      "receiveTime": "2026-03-29 17:08",
+      "isHighRisk": false
+    }
+  },
+  {
+    "id": "seed-order-1",
+    "orderId": "TM7823349021",
+    "customerId": "customer-2",
+    "productId": "product-3",
+    "orderStatus": "已签收",
+    "productInfo": {
+      "name": "恒温电煮锅",
+      "model": "EZ-POT 2.0",
+      "specification": "奶油白 / 2L",
+      "category": "厨房小家电",
+      "receiveTime": "2026-03-26 18:42",
+      "isHighRisk": false
+    }
+  },
+  {
+    "id": "seed-order-2",
+    "orderId": "JD9021108422",
+    "customerId": "customer-2",
+    "productId": "product-4",
+    "orderStatus": "已签收",
+    "productInfo": {
+      "name": "便携榨汁杯",
+      "model": "Blend-Go S1",
+      "specification": "青绿色 / 350ml",
+      "category": "厨房小家电",
+      "receiveTime": "2026-03-24 14:12",
+      "isHighRisk": false
+    }
+  },
+  {
+    "id": "seed-order-3",
+    "orderId": "TB6639028844",
+    "customerId": "customer-3",
+    "productId": "product-5",
+    "orderStatus": "交易成功",
+    "productInfo": {
+      "name": "无线游戏耳机",
+      "model": "Sonic Air Pro",
+      "specification": "黑金版",
+      "category": "数码配件",
+      "receiveTime": "2026-03-20 12:06",
+      "isHighRisk": true
+    }
+  },
+  {
+    "id": "seed-order-4",
+    "orderId": "PDD5529087431",
+    "customerId": "customer-3",
+    "productId": "product-6",
+    "orderStatus": "已签收",
+    "productInfo": {
+      "name": "儿童恒温水杯",
+      "model": "KidWarm X5",
+      "specification": "480ml / 小熊款",
+      "category": "母婴电器",
+      "receiveTime": "2026-03-21 09:32",
+      "isHighRisk": true
+    }
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "product-1",
+    "name": "多功能电烤盘",
+    "model": "Grill-One M2",
+    "specification": "奶油白 / 3档火力",
+    "category": "厨房小家电",
+    "isHighRisk": false
+  },
+  {
+    "id": "product-2",
+    "name": "智能热水壶",
+    "model": "Kettle Flow",
+    "specification": "米白色 / 1.5L",
+    "category": "厨房小家电",
+    "isHighRisk": false
+  },
+  {
+    "id": "product-3",
+    "name": "恒温电煮锅",
+    "model": "EZ-POT 2.0",
+    "specification": "奶油白 / 2L",
+    "category": "厨房小家电",
+    "isHighRisk": false
+  },
+  {
+    "id": "product-4",
+    "name": "便携榨汁杯",
+    "model": "Blend-Go S1",
+    "specification": "青绿色 / 350ml",
+    "category": "厨房小家电",
+    "isHighRisk": false
+  },
+  {
+    "id": "product-5",
+    "name": "无线游戏耳机",
+    "model": "Sonic Air Pro",
+    "specification": "黑金版",
+    "category": "数码配件",
+    "isHighRisk": true
+  },
+  {
+    "id": "product-6",
+    "name": "儿童恒温水杯",
+    "model": "KidWarm X5",
+    "specification": "480ml / 小熊款",
+    "category": "母婴电器",
+    "isHighRisk": true
+  }
+]
