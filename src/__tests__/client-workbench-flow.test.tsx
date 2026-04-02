@@ -145,4 +145,50 @@ describe("客户侧与工作台闭环", () => {
       "我晚点再补充生产批次号"
     );
   });
+
+  it("选择已有历史投诉的客户后，仍然优先展示发起新投诉表单", async () => {
+    const user = userEvent.setup();
+    renderAtPath("/client");
+
+    await screen.findByText("客户售后窗口");
+    await user.selectOptions(screen.getByLabelText("选择客户身份"), "customer-2");
+
+    expect(await screen.findByLabelText("选择订单")).toBeInTheDocument();
+    expect(screen.getByLabelText("选择投诉类型")).toBeInTheDocument();
+    expect(screen.getByLabelText("投诉内容")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "发起投诉" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "补充当前投诉" })).toBeInTheDocument();
+  });
+
+  it("点击重置演示数据后会恢复到种子工单并清掉新建投诉", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderAtPath("/client");
+
+    await screen.findByText("客户售后窗口");
+    await user.selectOptions(screen.getByLabelText("选择客户身份"), "customer-1");
+    await user.selectOptions(screen.getByLabelText("选择订单"), "order-new-1");
+    await user.type(screen.getByLabelText("投诉内容"), "这是一次需要被重置的新投诉。");
+    await user.click(screen.getByRole("button", { name: "发起投诉" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("投诉已提交，售后工作台可查看最新分析。")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("link", { name: "切换到售后工作台" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("QG-20260331-001")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "重置演示数据" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("QG-20260331-001")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("QG-20260328-001")).toBeInTheDocument();
+    expect(screen.getByText("QG-20260328-004")).toBeInTheDocument();
+  });
 });

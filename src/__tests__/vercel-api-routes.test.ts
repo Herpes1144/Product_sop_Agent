@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const requiredApiFiles = [
   "api/bootstrap.ts",
+  "api/demo/reset.ts",
   "api/ai/health.ts",
   "api/complaints.ts",
   "api/complaints/[...route].ts"

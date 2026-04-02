@@ -93,6 +93,7 @@ export function ClientPage() {
   const [historyView, setHistoryView] = useState<"messages" | "attachments">(
     persistedClientUiState?.historyView ?? "messages"
   );
+  const [showFollowUpPanel, setShowFollowUpPanel] = useState(false);
   const [lastHint, setLastHint] = useState("请选择订单并发起投诉。");
   const activeCustomer =
     state.customers.find((customer) => customer.id === state.activeCustomerId) ?? state.customers[0];
@@ -114,6 +115,21 @@ export function ClientPage() {
       activeCustomerComplaint ? draftMessageByComplaint[activeCustomerComplaint.id] ?? "" : ""
     );
   }, [activeCustomerComplaint?.id]);
+
+  useEffect(() => {
+    setShowFollowUpPanel(false);
+  }, [activeCustomer?.id]);
+
+  useEffect(() => {
+    if (!activeCustomerComplaint) {
+      setShowFollowUpPanel(false);
+      return;
+    }
+
+    if (draftMessage.trim()) {
+      setShowFollowUpPanel(true);
+    }
+  }, [activeCustomerComplaint, draftMessage]);
 
   useEffect(() => {
     const persisted = readPersistedClientUiState();
@@ -184,6 +200,7 @@ export function ClientPage() {
       }
 
       setDraftComplaint("");
+      setShowFollowUpPanel(true);
       setLastHint("投诉已提交，系统正在同步分析。");
       await analyzeComplaint(complaint.id);
       setLastHint("投诉已提交，售后工作台可查看最新分析。");
@@ -265,113 +282,130 @@ export function ClientPage() {
           </div>
         ) : null}
 
-        {!activeCustomerComplaint ? (
-          <div className="client-card">
-            <div className="client-card__head">
+        <div className="client-card client-card--primary">
+          <div className="client-card__head">
+            <div>
               <strong>发起新的质量投诉</strong>
               <span>{lastHint}</span>
             </div>
-
-            <label className="client-field">
-              <span>选择订单</span>
-              <select
-                aria-label="选择订单"
-                value={selectedOrderId}
-                onChange={(event) => setSelectedOrderId(event.target.value)}
+            {activeCustomerComplaint ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowFollowUpPanel((current) => !current)}
               >
-                {availableOrders.map((order) => (
-                  <option key={order.id} value={order.id}>
-                    {order.orderId} · {order.productInfo.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="client-field">
-              <span>选择投诉类型</span>
-              <select
-                aria-label="选择投诉类型"
-                value={selectedComplaintType}
-                onChange={(event) =>
-                  setSelectedComplaintType(event.target.value as ComplaintType)
-                }
-              >
-                {complaintTypeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="client-field">
-              <span>投诉内容</span>
-              <textarea
-                aria-label="投诉内容"
-                rows={5}
-                value={draftComplaint}
-                onChange={(event) => setDraftComplaint(event.target.value)}
-                placeholder="请描述商品问题、到货情况和诉求。"
-              />
-            </label>
-
-            <button
-              type="button"
-              className="client-primary-button"
-              onClick={() => void handleCreateComplaint()}
-            >
-              发起投诉
-            </button>
+                补充当前投诉
+              </button>
+            ) : null}
           </div>
-        ) : (
+
+          <label className="client-field">
+            <span>选择订单</span>
+            <select
+              aria-label="选择订单"
+              value={selectedOrderId}
+              onChange={(event) => setSelectedOrderId(event.target.value)}
+            >
+              {availableOrders.map((order) => (
+                <option key={order.id} value={order.id}>
+                  {order.orderId} · {order.productInfo.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="client-field">
+            <span>选择投诉类型</span>
+            <select
+              aria-label="选择投诉类型"
+              value={selectedComplaintType}
+              onChange={(event) =>
+                setSelectedComplaintType(event.target.value as ComplaintType)
+              }
+            >
+              {complaintTypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="client-field">
+            <span>投诉内容</span>
+            <textarea
+              aria-label="投诉内容"
+              rows={5}
+              value={draftComplaint}
+              onChange={(event) => setDraftComplaint(event.target.value)}
+              placeholder="请描述商品问题、到货情况和诉求。"
+            />
+          </label>
+
+          <button
+            type="button"
+            className="client-primary-button"
+            onClick={() => void handleCreateComplaint()}
+          >
+            发起投诉
+          </button>
+        </div>
+
+        {activeCustomerComplaint ? (
           <>
             <div className="client-card client-card--active">
               <div className="client-card__head">
                 <strong>{activeCustomerComplaint.ticketNo}</strong>
-                <span>{lastHint}</span>
+                <span>当前已有进行中的投诉，补充后需由售后手动触发重新分析。</span>
               </div>
               <p className="client-card__summary">{activeCustomerComplaint.complaintText}</p>
 
-              <div className="client-focus-panel">
-                <div className="client-focus-panel__meta">
-                  <span className="client-badge">当前可补充说明和材料</span>
-                  <span className="client-side-note">
-                    当前投诉已提交，补充后需由售后手动触发重新分析。
-                  </span>
-                </div>
+              {showFollowUpPanel ? (
+                <div className="client-focus-panel">
+                  <div className="client-focus-panel__meta">
+                    <span className="client-badge">当前可补充说明和材料</span>
+                    <span className="client-side-note">
+                      上传照片或视频后，工作台会同步看到同一份材料。
+                    </span>
+                  </div>
 
-                <div className="client-composer client-composer--primary">
-                  <textarea
-                    aria-label="客户补充说明"
-                    rows={4}
-                    value={draftMessage}
-                    onChange={(event) => setDraftMessage(event.target.value)}
-                    placeholder="继续补充说明、上传时间点、批次号或新的诉求变化。"
-                  />
-                  <div className="client-composer__actions">
-                    <label className="client-upload-button">
-                      上传材料
-                      <input
-                        aria-label="上传材料"
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={(event) => {
-                          void handleAttachmentChange(event.target.files);
-                          event.currentTarget.value = "";
-                        }}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="client-primary-button"
-                      onClick={() => void handleSendMessage()}
-                    >
-                      发送补充
-                    </button>
+                  <div className="client-composer client-composer--primary">
+                    <textarea
+                      aria-label="客户补充说明"
+                      rows={4}
+                      value={draftMessage}
+                      onChange={(event) => setDraftMessage(event.target.value)}
+                      placeholder="继续补充说明、上传时间点、批次号或新的诉求变化。"
+                    />
+                    <div className="client-composer__actions">
+                      <label className="client-upload-button">
+                        上传材料
+                        <input
+                          aria-label="上传材料"
+                          type="file"
+                          accept="image/*,video/*"
+                          multiple
+                          onChange={(event) => {
+                            void handleAttachmentChange(event.target.files);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="client-primary-button"
+                        onClick={() => void handleSendMessage()}
+                      >
+                        发送补充
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <p className="client-side-note">
+                  当前投诉的补充入口已收起。需要继续补充材料时，点击右上角“补充当前投诉”。
+                </p>
+              )}
             </div>
 
             <div className="client-card client-card--history">
@@ -428,7 +462,7 @@ export function ClientPage() {
               )}
             </div>
           </>
-        )}
+        ) : null}
 
         {backendError ? <p className="client-side-note">后端提示：{backendError}</p> : null}
       </section>
