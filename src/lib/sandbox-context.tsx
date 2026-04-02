@@ -19,11 +19,90 @@ import {
   appendOperatorMessageRecord,
   applyComplaintAction,
   createComplaintRecord,
+  requestDemoReset,
   requestBootstrap,
   requestComplaintAnalysis,
   requestComplaintReanalysis
 } from "./backend-client";
 import { syncTicketFromComplaintWithOrder } from "./sandbox-store";
+
+const UI_STATE_KEY = "quality-complaint-demo-ui-state";
+
+interface PersistedUiState {
+  activeCustomerId: string;
+  activeComplaintId: string | null;
+}
+
+function readPersistedUiState(): PersistedUiState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(UI_STATE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedUiState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedUiState(nextState: PersistedUiState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(UI_STATE_KEY, JSON.stringify(nextState));
+}
+
+function clearPersistedUiState() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(UI_STATE_KEY);
+}
+
+function resolveActiveCustomerId(
+  snapshot: SandboxState,
+  currentValue: string,
+  persistedValue: string
+): string {
+  const candidates = [
+    currentValue,
+    persistedValue,
+    snapshot.activeCustomerId,
+    snapshot.customers[0]?.id ?? ""
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && snapshot.customers.some((customer) => customer.id === candidate)) {
+      return candidate;
+    }
+  }
+
+  return "";
+}
+
+function resolveActiveComplaintId(
+  snapshot: SandboxState,
+  currentValue: string | null,
+  persistedValue: string | null
+): string | null {
+  const candidates = [
+    currentValue,
+    persistedValue,
+    snapshot.activeComplaintId,
+    snapshot.complaints[0]?.id ?? null
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && snapshot.complaints.some((complaint) => complaint.id === candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
 
 interface SandboxContextValue {
   state: SandboxState;
@@ -68,16 +147,21 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
 
   async function refreshBootstrap() {
     const payload = await requestBootstrap();
+    const persistedUiState = readPersistedUiState();
+    const nextActiveCustomerId = resolveActiveCustomerId(
+      payload.snapshot,
+      activeCustomerId,
+      persistedUiState?.activeCustomerId ?? ""
+    );
+    const nextActiveComplaintId = resolveActiveComplaintId(
+      payload.snapshot,
+      activeComplaintId,
+      persistedUiState?.activeComplaintId ?? null
+    );
     setState(payload.snapshot);
     setActionCatalog(payload.actionCatalog);
-    setActiveCustomerIdState((current) => current || payload.snapshot.activeCustomerId || payload.snapshot.customers[0]?.id || "");
-    setActiveComplaintIdState((current) => {
-      if (current && payload.snapshot.complaints.some((complaint) => complaint.id === current)) {
-        return current;
-      }
-
-      return payload.snapshot.activeComplaintId || payload.snapshot.complaints[0]?.id || null;
-    });
+    setActiveCustomerIdState(nextActiveCustomerId);
+    setActiveComplaintIdState(nextActiveComplaintId);
   }
 
   useEffect(() => {
@@ -90,13 +174,22 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const persistedUiState = readPersistedUiState();
         setState(payload.snapshot);
         setActionCatalog(payload.actionCatalog);
         setActiveCustomerIdState(
-          payload.snapshot.activeCustomerId || payload.snapshot.customers[0]?.id || ""
+          resolveActiveCustomerId(
+            payload.snapshot,
+            "",
+            persistedUiState?.activeCustomerId ?? ""
+          )
         );
         setActiveComplaintIdState(
-          payload.snapshot.activeComplaintId || payload.snapshot.complaints[0]?.id || null
+          resolveActiveComplaintId(
+            payload.snapshot,
+            null,
+            persistedUiState?.activeComplaintId ?? null
+          )
         );
         setBackendError(null);
       })
@@ -118,6 +211,13 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    writePersistedUiState({
+      activeCustomerId,
+      activeComplaintId
+    });
+  }, [activeComplaintId, activeCustomerId]);
+
   const value = useMemo<SandboxContextValue>(() => {
     const workbenchTickets = state.complaints.map((complaint) =>
       syncTicketFromComplaintWithOrder(state, complaint)
@@ -127,7 +227,9 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
       state.complaints[0] ??
       null;
     const activeCustomerComplaint =
-      state.complaints.find((complaint) => complaint.customerId === activeCustomerId) ?? null;
+      (activeComplaint?.customerId === activeCustomerId ? activeComplaint : null) ??
+      state.complaints.find((complaint) => complaint.customerId === activeCustomerId) ??
+      null;
 
     return {
       state: {
@@ -159,6 +261,8 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
       addCustomerMessage: async (complaintId, text) => {
         const result = await appendCustomerMessageRecord(complaintId, text);
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       addCustomerAttachments: async (complaintId, attachments) => {
@@ -171,30 +275,49 @@ export function SandboxProvider({ children }: { children: ReactNode }) {
           }))
         );
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       addOperatorMessage: async (complaintId, text) => {
         const result = await appendOperatorMessageRecord(complaintId, text);
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       applyAction: async (complaintId, actionType) => {
         const result = await applyComplaintAction(complaintId, actionType);
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       analyzeComplaint: async (complaintId) => {
         const result = await requestComplaintAnalysis(complaintId);
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       requestReanalysis: async (complaintId) => {
         const result = await requestComplaintReanalysis(complaintId);
         setState(result.snapshot);
+        setActiveCustomerIdState(result.complaint.customerId);
+        setActiveComplaintIdState(result.complaint.id);
         setBackendError(null);
       },
       resetSandbox: async () => {
-        await refreshBootstrap();
+        const payload = await requestDemoReset();
+        clearPersistedUiState();
+        setState(payload.snapshot);
+        setActionCatalog(payload.actionCatalog);
+        setActiveCustomerIdState(
+          payload.snapshot.activeCustomerId || payload.snapshot.customers[0]?.id || ""
+        );
+        setActiveComplaintIdState(
+          payload.snapshot.activeComplaintId || payload.snapshot.complaints[0]?.id || null
+        );
         setBackendError(null);
       }
     };

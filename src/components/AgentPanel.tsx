@@ -39,6 +39,13 @@ export function AgentPanel({
   onRequestReanalysis
 }: AgentPanelProps) {
   const recommendedTypes = new Set(ticket.next_action.map((action) => action.type));
+  const imageAttachmentCount =
+    ticket.attachment_assets?.filter((asset) => asset.kind === "image").length ?? 0;
+  const attachmentAnalysisMissing =
+    imageAttachmentCount > 0 && (ticket.analyzed_attachment_count ?? 0) === 0;
+  const analysisModeLabel = ticket.analysis_used_fallback
+    ? "本次分析已回退为规则/演示分析"
+    : "本次分析来自真实 AI";
 
   return (
     <aside className="agent panel">
@@ -56,6 +63,15 @@ export function AgentPanel({
                   已分析附件 {ticket.analyzed_attachment_count}
                 </span>
               ) : null}
+              <span
+                className={
+                  ticket.analysis_used_fallback
+                    ? "inline-pill inline-pill--soft"
+                    : "inline-pill"
+                }
+              >
+                {analysisModeLabel}
+              </span>
             </div>
             <div className="agent-controls">
               {isReplyGenerating ? <span className="loading-tag">生成中</span> : null}
@@ -100,6 +116,12 @@ export function AgentPanel({
                 {ticket.analysis_fallback_reason ?? "未知"}
               </p>
               <p>{ticket.manual_guidance ?? "请人工结合附件和最新聊天继续判断。"}</p>
+            </div>
+          ) : null}
+          {attachmentAnalysisMissing ? (
+            <div className="agent-warning">
+              <strong>当前分析未读取到附件</strong>
+              <p>当前工单已有图片材料，但本次分析未成功计入附件，请优先检查附件链路后再重试。</p>
             </div>
           ) : ticket.manual_guidance ? (
             <div className="agent-guidance">

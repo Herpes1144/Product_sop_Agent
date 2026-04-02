@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { buildActionItems, getActionDefinition } from "../../src/mock/action-map.js";
 import { mockTickets } from "../../src/mock/tickets.js";
@@ -51,6 +51,7 @@ export interface CreateMockBackendServiceOptions {
 export interface MockBackendService {
   rootDir: string;
   getSnapshot: () => Promise<SandboxState>;
+  resetDemo: () => Promise<SandboxState>;
   createComplaint: (input: Omit<CreateComplaintInput, "attachments">) => Promise<MutationResult>;
   addCustomerMessage: (complaintId: string, text: string) => Promise<MutationResult>;
   addOperatorMessage: (complaintId: string, text: string) => Promise<MutationResult>;
@@ -250,7 +251,7 @@ async function ensureDir(path: string) {
   await mkdir(path, { recursive: true });
 }
 
-async function createSeedState(seedDir: string): Promise<PersistedSandboxData> {
+export async function createSeedState(seedDir: string): Promise<PersistedSandboxData> {
   const customers = await readJsonFile<CustomerProfile[]>(join(seedDir, "customers.json"));
   const products = await readJsonFile<ProductRecord[]>(join(seedDir, "products.json"));
   const orders = await readJsonFile<OrderRecord[]>(join(seedDir, "orders.json"));
@@ -425,6 +426,13 @@ export function createMockBackendService(
     rootDir,
     async getSnapshot() {
       return toSandboxState(await ensureState());
+    },
+    async resetDemo() {
+      await rm(uploadsDir, { recursive: true, force: true });
+      await ensureDir(uploadsDir);
+      const seedState = await createSeedState(seedDir);
+      await writeState(runtimeFilePath, seedState);
+      return toSandboxState(seedState);
     },
     async createComplaint(input) {
       const snapshot = toSandboxState(await ensureState());

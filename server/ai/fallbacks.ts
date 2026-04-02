@@ -45,6 +45,23 @@ function inferMaterialAction(
   return attachmentCount > 0 ? "request_photo" : "request_video";
 }
 
+function inferContinueAction(
+  nextActions: NextActionType[],
+  isHighRisk: boolean
+): NextActionType {
+  const candidate = nextActions.find((action) => action.startsWith("continue_"));
+
+  if (candidate) {
+    return candidate;
+  }
+
+  if (isHighRisk) {
+    return "escalate";
+  }
+
+  return "continue_return_refund";
+}
+
 function inferPrimaryAction(
   resultType: RecommendedResultType | null,
   nextActions: NextActionType[],
@@ -94,6 +111,10 @@ function buildManualGuidance(input: {
     return "建议人工先核对附件是否清晰、是否覆盖整体与细节，再决定是否继续补材料。";
   }
 
+  if (input.attachmentCount > 0) {
+    return "客户已补充材料，建议人工结合最新附件和聊天内容推进下一步处理判断。";
+  }
+
   if (input.primaryAction === "escalate") {
     return "建议人工检查高风险标记、聊天争议点和证据完整性，再决定是否升级。";
   }
@@ -131,7 +152,11 @@ export function finalizeAnalysisResult(
   const nextActions = Array.isArray(raw.next_actions)
     ? raw.next_actions.filter(isActionType)
     : [];
-  const needMoreMaterials = Boolean(raw.need_more_materials);
+  const latestCustomerMessage = context.latestCustomerMessage ?? "";
+  const hasMaterialEvidence =
+    context.attachmentCount > 0 ||
+    /(补图|补照片|已上传|附件|图片|视频)/.test(latestCustomerMessage);
+  const needMoreMaterials = Boolean(raw.need_more_materials) && !hasMaterialEvidence;
   const shouldEscalate = Boolean(raw.should_escalate);
   let recommendedResultType = toResultType(raw.recommended_result_type);
   let primaryAction = isActionType(raw.primary_action)
@@ -143,13 +168,14 @@ export function finalizeAnalysisResult(
         context.isHighRisk
       );
   let fallbackReason: AnalysisFallbackReason | null = null;
-  const latestCustomerMessage = context.latestCustomerMessage ?? "";
   const customerWantsClosure = detectCustomerWantsClosure(latestCustomerMessage);
   const customerIntentSummary =
     typeof raw.customer_intent_summary === "string" && raw.customer_intent_summary.trim()
       ? raw.customer_intent_summary.trim()
       : customerWantsClosure
         ? "客户已表示不再继续退款或处理，倾向直接结束本次投诉。"
+        : hasMaterialEvidence
+          ? "客户已补充材料，可结合最新附件与聊天继续推进判断。"
         : latestCustomerMessage
           ? "已结合客户最新聊天进行分析。"
           : "暂无新的客户聊天变化。";
@@ -161,6 +187,10 @@ export function finalizeAnalysisResult(
   } else if (needMoreMaterials) {
     primaryAction = inferMaterialAction(nextActions, context.attachmentCount);
     recommendedResultType = "waiting_material";
+    fallbackReason = "rule_corrected";
+  } else if (hasMaterialEvidence && recommendedResultType === "waiting_material") {
+    primaryAction = inferContinueAction(nextActions, context.isHighRisk);
+    recommendedResultType = primaryAction === "escalate" ? "waiting_escalation" : "continue_path";
     fallbackReason = "rule_corrected";
   } else if (shouldEscalate || (context.isHighRisk && recommendedResultType === "manual_review")) {
     primaryAction = "escalate";

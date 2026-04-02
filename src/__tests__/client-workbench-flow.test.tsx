@@ -90,4 +90,59 @@ describe("客户侧与工作台闭环", () => {
       expect(screen.getByText(/继续核实处理/)).toBeInTheDocument();
     });
   });
+
+  it("客户上传附件后，工作台只展示真实附件而不是待补充占位", async () => {
+    const user = userEvent.setup();
+    renderAtPath("/client");
+
+    await screen.findByText("客户售后窗口");
+    await user.selectOptions(screen.getByLabelText("选择客户身份"), "customer-1");
+    await user.selectOptions(screen.getByLabelText("选择订单"), "order-new-1");
+    await user.selectOptions(screen.getByLabelText("选择投诉类型"), "明显破损 / 瑕疵");
+    await user.type(screen.getByLabelText("投诉内容"), "锅身边缘有裂痕。");
+    await user.click(screen.getByRole("button", { name: "发起投诉" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("投诉已提交，售后工作台可查看最新分析。")).toBeInTheDocument();
+    });
+
+    const uploadInput = screen.getByLabelText("上传材料");
+    const file = new File(["fake"], "damage-photo.png", { type: "image/png" });
+    await user.upload(uploadInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByText("材料已补充，等待售后查看。")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("link", { name: "切换到售后工作台" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("damage-photo.png").length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText("待补充")).not.toBeInTheDocument();
+  });
+
+  it("刷新后会保留当前客户投诉的未发送补充草稿", async () => {
+    const user = userEvent.setup();
+    renderAtPath("/client");
+
+    await screen.findByText("客户售后窗口");
+    await user.selectOptions(screen.getByLabelText("选择客户身份"), "customer-1");
+    await user.selectOptions(screen.getByLabelText("选择订单"), "order-new-1");
+    await user.selectOptions(screen.getByLabelText("选择投诉类型"), "明显破损 / 瑕疵");
+    await user.type(screen.getByLabelText("投诉内容"), "锅身边缘有裂痕。");
+    await user.click(screen.getByRole("button", { name: "发起投诉" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("投诉已提交，售后工作台可查看最新分析。")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("客户补充说明"), "我晚点再补充生产批次号");
+
+    renderAtPath("/client");
+
+    expect(await screen.findByLabelText("客户补充说明")).toHaveValue(
+      "我晚点再补充生产批次号"
+    );
+  });
 });

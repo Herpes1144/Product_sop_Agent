@@ -79,6 +79,14 @@ export function installMockBackend(options: MockBackendOptions = {}) {
       });
     }
 
+    if (url === "/api/demo/reset" && method === "POST") {
+      state = createSandboxState();
+      return jsonResponse({
+        snapshot: state,
+        actionCatalog
+      });
+    }
+
     if (url === "/api/complaints" && method === "POST") {
       state = createComplaintFromOrder(state, {
         customerId: body.customerId,

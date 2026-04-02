@@ -56,6 +56,7 @@ export interface GenerateReplyRequest {
 }
 
 export interface AiProviderHealth {
+  status: "ready" | "missing_config" | "unreachable" | "degraded";
   configured: boolean;
   reachable: boolean;
   provider: "dashscope";

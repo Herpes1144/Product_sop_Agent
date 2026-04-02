@@ -1,4 +1,4 @@
-import { extname } from "node:path";
+import { extname, resolve } from "node:path";
 import { buildActionItems, getActionDefinition } from "../../src/mock/action-map.js";
 import type { AiAnalysisResult } from "../../src/types/ai.js";
 import type {
@@ -21,9 +21,10 @@ import type {
   TicketStatus
 } from "../../src/types/workbench.js";
 import { SUPABASE_ATTACHMENT_BUCKET, getSupabaseAdminClient, isSupabaseConfigured } from "./supabase-client.js";
-import type {
-  CreateMockBackendServiceOptions,
-  MockBackendService
+import {
+  createSeedState,
+  type CreateMockBackendServiceOptions,
+  type MockBackendService
 } from "./service.js";
 
 interface MutationResult {
@@ -416,6 +417,7 @@ export function createSupabaseBackendService(
 ): MockBackendService {
   const supabase = getSupabaseAdminClient() as any;
   const rootDir = options.rootDir ?? process.cwd();
+  const seedDir = options.seedDir ? resolve(options.seedDir) : resolve(process.cwd(), "data");
   const nowLabel = options.nowLabel ?? (() => "刚刚");
   const nowStamp = options.nowStamp ?? (() => new Date().toISOString().replace("T", " ").slice(0, 19));
 
@@ -498,6 +500,141 @@ export function createSupabaseBackendService(
   return {
     rootDir,
     getSnapshot,
+    async resetDemo() {
+      const existingAttachments = (await expectNoError(
+        supabase.from("attachments").select("storage_path")
+      )) as Array<{ storage_path: string | null }>;
+      const removablePaths = existingAttachments
+        .map((item) => item.storage_path)
+        .filter((value): value is string => Boolean(value));
+
+      if (removablePaths.length > 0) {
+        const removal = await supabase.storage
+          .from(SUPABASE_ATTACHMENT_BUCKET)
+          .remove(removablePaths);
+
+        if (removal.error) {
+          throw new Error(removal.error.message);
+        }
+      }
+
+      await expectNoError(supabase.from("analysis_snapshots").delete().not("id", "is", null));
+      await expectNoError(supabase.from("event_logs").delete().not("id", "is", null));
+      await expectNoError(supabase.from("attachments").delete().not("id", "is", null));
+      await expectNoError(supabase.from("processing_records").delete().not("id", "is", null));
+      await expectNoError(supabase.from("messages").delete().not("id", "is", null));
+      await expectNoError(supabase.from("complaints").delete().not("id", "is", null));
+      await expectNoError(supabase.from("orders").delete().not("id", "is", null));
+      await expectNoError(supabase.from("products").delete().not("id", "is", null));
+      await expectNoError(supabase.from("customers").delete().not("id", "is", null));
+
+      const seedState = await createSeedState(seedDir);
+
+      if (seedState.customers.length > 0) {
+        await expectNoError(supabase.from("customers").insert(seedState.customers));
+      }
+
+      if (seedState.products.length > 0) {
+        await expectNoError(
+          supabase.from("products").insert(
+            seedState.products.map((product) => ({
+              id: product.id,
+              name: product.name,
+              model: product.model,
+              specification: product.specification,
+              category: product.category,
+              is_high_risk: product.isHighRisk
+            }))
+          )
+        );
+      }
+
+      if (seedState.orders.length > 0) {
+        await expectNoError(
+          supabase.from("orders").insert(
+            seedState.orders.map((order) => ({
+              id: order.id,
+              order_id: order.orderId,
+              customer_id: order.customerId,
+              product_id: order.productId,
+              order_status: order.orderStatus,
+              product_info: order.productInfo
+            }))
+          )
+        );
+      }
+
+      if (seedState.complaints.length > 0) {
+        await expectNoError(
+          supabase.from("complaints").insert(
+            seedState.complaints.map((complaint) => ({
+              id: complaint.id,
+              customer_id: complaint.customerId,
+              order_ref_id: complaint.orderRefId,
+              order_id: complaint.orderId,
+              ticket_no: complaint.ticketNo,
+              created_at: complaint.createdAt,
+              priority: complaint.priority,
+              complaint_type: complaint.complaintType,
+              complaint_text: complaint.complaintText,
+              status: complaint.status,
+              path_tag: complaint.pathTag,
+              problem_type: complaint.problemType,
+              ai_question_summary: complaint.aiQuestionSummary,
+              sop_judgement: complaint.sopJudgement,
+              next_actions: complaint.nextActions,
+              recording_summary: complaint.recordingSummary,
+              order_status: complaint.orderStatus,
+              product_info: complaint.productInfo,
+              ai_suggested_status: complaint.aiSuggestedStatus ?? null,
+              reanalyze_available: complaint.reanalyzeAvailable,
+              reanalyze_pending: complaint.reanalyzePending ?? false,
+              analysis_snapshot_id: complaint.analysisSnapshotId ?? null,
+              primary_action: complaint.primaryAction ?? null,
+              analysis_used_fallback: complaint.analysisUsedFallback ?? false,
+              analysis_fallback_reason: complaint.analysisFallbackReason ?? null,
+              manual_guidance: complaint.manualGuidance ?? null,
+              customer_intent_summary: complaint.customerIntentSummary ?? null,
+              analyzed_attachment_count: complaint.analyzedAttachmentCount ?? 0
+            }))
+          )
+        );
+      }
+
+      const seedMessages = seedState.complaints.flatMap((complaint) =>
+        complaint.messages.map((message) => ({
+          id: message.id,
+          complaint_id: complaint.id,
+          role: message.role,
+          text: message.text,
+          time_label: message.time,
+          created_at: new Date().toISOString()
+        }))
+      );
+
+      if (seedMessages.length > 0) {
+        await expectNoError(supabase.from("messages").insert(seedMessages));
+      }
+
+      const seedRecords = seedState.complaints.flatMap((complaint) =>
+        complaint.processingRecords.map((record) => ({
+          id: record.id,
+          complaint_id: complaint.id,
+          actor: record.actor,
+          action: record.action,
+          note: record.note,
+          time_label: record.time,
+          resulting_status: record.resultingStatus,
+          created_at: new Date().toISOString()
+        }))
+      );
+
+      if (seedRecords.length > 0) {
+        await expectNoError(supabase.from("processing_records").insert(seedRecords));
+      }
+
+      return getSnapshot();
+    },
     async createComplaint(input) {
       const order = (await expectNoError(
         supabase.from("orders").select("*").eq("id", input.orderId).single()

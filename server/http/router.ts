@@ -134,6 +134,21 @@ export async function handleApiRequest(
     };
   }
 
+  if (method === "POST" && pathname === "/api/demo/reset") {
+    try {
+      const snapshot = await getBackendService().resetDemo();
+      return {
+        statusCode: 200,
+        payload: {
+          snapshot,
+          actionCatalog: buildActionCatalog()
+        }
+      };
+    } catch (error) {
+      return serverError(error, "Reset demo request failed.");
+    }
+  }
+
   if (method === "GET" && pathname === "/api/complaints") {
     const snapshot = await getBackendService().getSnapshot();
     return {

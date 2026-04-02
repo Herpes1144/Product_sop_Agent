@@ -38,7 +38,18 @@ async function requestJson<TResponse>(
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      if (payload?.message) {
+        message = payload.message;
+      }
+    } catch {
+      // Ignore JSON parsing failures and keep the status message.
+    }
+
+    throw new Error(message);
   }
 
   return (await response.json()) as TResponse;
@@ -47,6 +58,13 @@ async function requestJson<TResponse>(
 export function requestBootstrap(): Promise<BootstrapResponse> {
   return requestJson<BootstrapResponse>("/api/bootstrap", {
     method: "GET"
+  });
+}
+
+export function requestDemoReset(): Promise<BootstrapResponse> {
+  return requestJson<BootstrapResponse>("/api/demo/reset", {
+    method: "POST",
+    body: JSON.stringify({})
   });
 }
 

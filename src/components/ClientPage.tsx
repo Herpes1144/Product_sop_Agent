@@ -1,6 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSandbox } from "../lib/sandbox-context";
 import type { AttachmentAsset, ComplaintType } from "../types/sandbox";
+
+const CLIENT_UI_STATE_KEY = "quality-complaint-client-ui";
+
+interface PersistedClientUiState {
+  selectedOrderId: string;
+  selectedComplaintType: ComplaintType;
+  draftComplaint: string;
+  draftMessageByComplaint: Record<string, string>;
+  historyView: "messages" | "attachments";
+}
 
 const complaintTypeOptions: ComplaintType[] = [
   "明显破损 / 瑕疵",
@@ -36,6 +46,27 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function readPersistedClientUiState(): PersistedClientUiState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CLIENT_UI_STATE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedClientUiState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedClientUiState(state: PersistedClientUiState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(CLIENT_UI_STATE_KEY, JSON.stringify(state));
+}
+
 export function ClientPage() {
   const {
     state,
@@ -48,12 +79,20 @@ export function ClientPage() {
     isBootstrapping,
     backendError
   } = useSandbox();
-  const [selectedOrderId, setSelectedOrderId] = useState("order-new-1");
-  const [selectedComplaintType, setSelectedComplaintType] = useState<ComplaintType>(
-    "明显破损 / 瑕疵"
+  const persistedClientUiState = readPersistedClientUiState();
+  const [selectedOrderId, setSelectedOrderId] = useState(
+    persistedClientUiState?.selectedOrderId ?? "order-new-1"
   );
-  const [draftComplaint, setDraftComplaint] = useState("");
+  const [selectedComplaintType, setSelectedComplaintType] = useState<ComplaintType>(
+    persistedClientUiState?.selectedComplaintType ?? "明显破损 / 瑕疵"
+  );
+  const [draftComplaint, setDraftComplaint] = useState(
+    persistedClientUiState?.draftComplaint ?? ""
+  );
   const [draftMessage, setDraftMessage] = useState("");
+  const [historyView, setHistoryView] = useState<"messages" | "attachments">(
+    persistedClientUiState?.historyView ?? "messages"
+  );
   const [lastHint, setLastHint] = useState("请选择订单并发起投诉。");
   const activeCustomer =
     state.customers.find((customer) => customer.id === state.activeCustomerId) ?? state.customers[0];
@@ -61,6 +100,50 @@ export function ClientPage() {
     () => state.orders.filter((order) => order.customerId === activeCustomer?.id),
     [activeCustomer?.id, state.orders]
   );
+
+  useEffect(() => {
+    if (!availableOrders.some((order) => order.id === selectedOrderId)) {
+      setSelectedOrderId(availableOrders[0]?.id ?? "");
+    }
+  }, [availableOrders, selectedOrderId]);
+
+  useEffect(() => {
+    const persisted = readPersistedClientUiState();
+    const draftMessageByComplaint = persisted?.draftMessageByComplaint ?? {};
+    setDraftMessage(
+      activeCustomerComplaint ? draftMessageByComplaint[activeCustomerComplaint.id] ?? "" : ""
+    );
+  }, [activeCustomerComplaint?.id]);
+
+  useEffect(() => {
+    const persisted = readPersistedClientUiState();
+    const draftMessageByComplaint = {
+      ...(persisted?.draftMessageByComplaint ?? {})
+    };
+
+    if (activeCustomerComplaint?.id) {
+      if (draftMessage.trim()) {
+        draftMessageByComplaint[activeCustomerComplaint.id] = draftMessage;
+      } else {
+        delete draftMessageByComplaint[activeCustomerComplaint.id];
+      }
+    }
+
+    writePersistedClientUiState({
+      selectedOrderId,
+      selectedComplaintType,
+      draftComplaint,
+      draftMessageByComplaint,
+      historyView
+    });
+  }, [
+    activeCustomerComplaint?.id,
+    draftComplaint,
+    draftMessage,
+    historyView,
+    selectedComplaintType,
+    selectedOrderId
+  ]);
 
   async function buildAssets(files: FileList, complaintId: string): Promise<AttachmentAsset[]> {
     const supportedFiles = Array.from(files).filter(
@@ -184,6 +267,11 @@ export function ClientPage() {
 
         {!activeCustomerComplaint ? (
           <div className="client-card">
+            <div className="client-card__head">
+              <strong>发起新的质量投诉</strong>
+              <span>{lastHint}</span>
+            </div>
+
             <label className="client-field">
               <span>选择订单</span>
               <select
@@ -237,71 +325,107 @@ export function ClientPage() {
           </div>
         ) : (
           <>
-            <div className="client-card client-card--thread">
+            <div className="client-card client-card--active">
               <div className="client-card__head">
                 <strong>{activeCustomerComplaint.ticketNo}</strong>
                 <span>{lastHint}</span>
               </div>
               <p className="client-card__summary">{activeCustomerComplaint.complaintText}</p>
-              <div className="client-thread">
-                {activeCustomerComplaint.messages.map((message) => (
-                  <article
-                    key={message.id}
-                    className={
-                      message.role === "customer"
-                        ? "client-bubble client-bubble--self"
-                        : "client-bubble client-bubble--agent"
-                    }
-                  >
-                    <strong>{message.role === "customer" ? activeCustomer?.name : "售后"}</strong>
-                    <p>{message.text}</p>
-                    <span>{message.time}</span>
-                  </article>
-                ))}
+
+              <div className="client-focus-panel">
+                <div className="client-focus-panel__meta">
+                  <span className="client-badge">当前可补充说明和材料</span>
+                  <span className="client-side-note">
+                    当前投诉已提交，补充后需由售后手动触发重新分析。
+                  </span>
+                </div>
+
+                <div className="client-composer client-composer--primary">
+                  <textarea
+                    aria-label="客户补充说明"
+                    rows={4}
+                    value={draftMessage}
+                    onChange={(event) => setDraftMessage(event.target.value)}
+                    placeholder="继续补充说明、上传时间点、批次号或新的诉求变化。"
+                  />
+                  <div className="client-composer__actions">
+                    <label className="client-upload-button">
+                      上传材料
+                      <input
+                        aria-label="上传材料"
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        onChange={(event) => {
+                          void handleAttachmentChange(event.target.files);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="client-primary-button"
+                      onClick={() => void handleSendMessage()}
+                    >
+                      发送补充
+                    </button>
+                  </div>
+                </div>
               </div>
-              {activeCustomerComplaint.attachments.length > 0 ? (
+            </div>
+
+            <div className="client-card client-card--history">
+              <div className="client-card__head">
+                <strong>历史记录</strong>
+                <div className="client-history-tabs" role="tablist" aria-label="客户侧历史记录切换">
+                  <button
+                    type="button"
+                    className={historyView === "messages" ? "tab tab--active" : "tab"}
+                    onClick={() => setHistoryView("messages")}
+                  >
+                    沟通记录
+                  </button>
+                  <button
+                    type="button"
+                    className={historyView === "attachments" ? "tab tab--active" : "tab"}
+                    onClick={() => setHistoryView("attachments")}
+                  >
+                    已上传材料
+                  </button>
+                </div>
+              </div>
+
+              {historyView === "messages" ? (
+                <div className="client-thread client-thread--history">
+                  {activeCustomerComplaint.messages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={
+                        message.role === "customer"
+                          ? "client-bubble client-bubble--self"
+                          : "client-bubble client-bubble--agent"
+                      }
+                    >
+                      <strong>{message.role === "customer" ? activeCustomer?.name : "售后"}</strong>
+                      <p>{message.text}</p>
+                      <span>{message.time}</span>
+                    </article>
+                  ))}
+                </div>
+              ) : activeCustomerComplaint.attachments.length > 0 ? (
                 <div className="client-attachment-list" aria-label="客户已上传附件">
                   {activeCustomerComplaint.attachments.map((attachment) => (
                     <div key={attachment.id} className="client-attachment-chip">
                       <strong>{attachment.name}</strong>
                       <span>
-                        {attachment.kind === "video" ? "视频" : "图片"} ·{" "}
-                        {formatBytes(attachment.size)}
+                        {attachment.kind === "video" ? "视频" : "图片"} · {formatBytes(attachment.size)}
                       </span>
                     </div>
                   ))}
                 </div>
-              ) : null}
-            </div>
-
-            <div className="client-composer">
-              <textarea
-                aria-label="客户补充说明"
-                rows={3}
-                value={draftMessage}
-                onChange={(event) => setDraftMessage(event.target.value)}
-                placeholder="继续补充说明或反馈售后处理结果。"
-              />
-              <div className="client-composer__actions">
-                <label className="client-upload-button">
-                  上传材料
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    onChange={(event) => {
-                      void handleAttachmentChange(event.target.files);
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="client-primary-button"
-                  onClick={() => void handleSendMessage()}
-                >
-                  发送补充
-                </button>
-              </div>
+              ) : (
+                <p className="client-side-note">当前还没有补充任何图片或视频材料。</p>
+              )}
             </div>
           </>
         )}

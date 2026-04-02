@@ -152,6 +152,11 @@ textarea {
   font-weight: 700;
 }
 
+.app-nav__button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .app-nav__link--active {
   border-color: var(--accent-border);
   background: var(--accent-soft);
@@ -179,7 +184,7 @@ textarea {
 
 .client-phone {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
   width: min(420px, 100%);
   min-height: min(820px, 100%);
@@ -289,6 +294,21 @@ textarea {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
+.client-card--active,
+.client-card--history {
+  min-height: 0;
+}
+
+.client-focus-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.client-focus-panel__meta {
+  display: grid;
+  gap: 6px;
+}
+
 .client-card__head strong {
   font-size: 0.82rem;
 }
@@ -310,6 +330,10 @@ textarea {
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+}
+
+.client-thread--history {
+  max-height: 240px;
 }
 
 .client-bubble {
@@ -346,6 +370,8 @@ textarea {
 .client-attachment-list {
   display: grid;
   gap: 8px;
+  max-height: 220px;
+  overflow: auto;
 }
 
 .client-attachment-chip {
@@ -373,6 +399,25 @@ textarea {
   display: grid;
   gap: 10px;
   padding: 12px;
+}
+
+.client-composer--primary {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.client-history-tabs {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.client-side-note {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .client-primary-button,
@@ -719,6 +764,23 @@ textarea {
 
 .attachment-panel {
   min-height: 128px;
+}
+
+.attachment-panel__empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-height: 128px;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 12px;
+  color: var(--text-subtle);
+}
+
+.attachment-panel__empty strong {
+  color: var(--text-main);
+  font-size: 0.78rem;
 }
 
 .attachment-panel__grid {

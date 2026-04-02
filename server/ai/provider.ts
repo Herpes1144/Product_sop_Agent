@@ -1,4 +1,5 @@
 export interface ProviderHealth {
+  status: "ready" | "missing_config" | "unreachable" | "degraded";
   configured: boolean;
   reachable: boolean;
   provider: "dashscope";
@@ -183,6 +184,7 @@ export async function getProviderHealth(): Promise<ProviderHealth> {
 
   if (!config.apiKey) {
     return {
+      status: "missing_config",
       configured: false,
       reachable: false,
       provider: "dashscope",
@@ -195,6 +197,7 @@ export async function getProviderHealth(): Promise<ProviderHealth> {
     await requestProvider({}, "/models");
 
     return {
+      status: "ready",
       configured: true,
       reachable: true,
       provider: "dashscope",
@@ -203,6 +206,7 @@ export async function getProviderHealth(): Promise<ProviderHealth> {
     };
   } catch (error) {
     return {
+      status: "unreachable",
       configured: true,
       reachable: false,
       provider: "dashscope",
