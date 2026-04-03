@@ -9,10 +9,10 @@ import {
 import { AgentPanel } from "./AgentPanel";
 import { ChatPanel, type ChatSizeMode } from "./ChatPanel";
 import { RawInfoPanel } from "./RawInfoPanel";
-import { requestComplaintReplyDraft } from "../lib/backend-client";
+import { requestReplySuggestion, requestTicketAnalysis } from "../lib/ai-client";
 import { TicketSidebar } from "./TicketSidebar";
 import { useSandbox } from "../lib/sandbox-context";
-import type { ActionItem, ComplaintTicket } from "../types/workbench";
+import type { ActionItem, ComplaintTicket, TicketStatus } from "../types/workbench";
 import { formatSearchableText } from "../utils/format";
 
 const CONTENT_LOADING_MS = 450;
@@ -32,16 +32,14 @@ function clampChatHeight(nextHeight: number, containerHeight: number): number {
 
 export function WorkbenchPage() {
   const {
-    actionCatalog,
     workbenchTickets,
     activeComplaint,
     setActiveComplaintId,
+    updateStatus,
     addOperatorMessage,
-    applyAction,
-    analyzeComplaint,
+    applyAnalysis,
     requestReanalysis,
-    isBootstrapping,
-    backendError
+    noteReplyDraftGenerated
   } = useSandbox();
   const [searchValue, setSearchValue] = useState("");
   const [composerValue, setComposerValue] = useState("");
@@ -70,9 +68,7 @@ export function WorkbenchPage() {
         ticket.ticketNo,
         ticket.problem_type,
         ticket.complaint_text,
-        ticket.order_id,
-        ticket.path_tag ?? "",
-        ticket.complaint_type ?? ""
+        ticket.order_id
       ]).includes(keyword)
     );
   }, [searchValue, workbenchTickets]);
@@ -145,15 +141,29 @@ export function WorkbenchPage() {
       return;
     }
 
+    const ticketSnapshot = workbenchTickets.find((ticket) => ticket.id === ticketId);
+
     setActiveComplaintId(ticketId);
     setIsContentLoading(true);
+    setIsAgentAnalyzing(false);
     setComposerValue("");
     setLastOperationNote("正在切换工单，原始信息优先加载。");
 
     window.setTimeout(() => {
       setIsContentLoading(false);
-      setLastOperationNote("已切换到当前工单，可继续查看附件、处理记录与快捷动作。");
+      if (ticketSnapshot) {
+        void handleAnalyze(ticketSnapshot, "已完成 AI 分析刷新，可继续执行快捷操作。");
+      }
     }, CONTENT_LOADING_MS);
+  }
+
+  function handleUpdateStatus(
+    ticketId: string,
+    status: TicketStatus,
+    note: string,
+    action: string
+  ) {
+    updateStatus(ticketId, status, action, note);
   }
 
   async function handleAnalyze(
@@ -164,10 +174,18 @@ export function WorkbenchPage() {
   ) {
     setIsAgentAnalyzing(true);
     setLastOperationNote(pendingNote);
+    requestReanalysis(ticketSnapshot.id);
 
     try {
-      await analyzeComplaint(ticketSnapshot.id);
-      setLastOperationNote(successNote);
+      const analysis = await requestTicketAnalysis(ticketSnapshot);
+      applyAnalysis(ticketSnapshot.id, analysis);
+      setLastOperationNote(
+        analysis.usedFallback
+          ? analysis.fallbackReason === "rule_corrected"
+            ? "AI 已完成分析，结果已按本地规则校正。"
+            : "AI 服务暂不可用，已回退到规则兜底结果。"
+          : successNote
+      );
     } catch {
       setLastOperationNote(failureNote);
     } finally {
@@ -176,23 +194,24 @@ export function WorkbenchPage() {
   }
 
   async function generateReplyDraft(ticketSnapshot: ComplaintTicket, action: ActionItem) {
+    if (!action.composerTemplate) {
+      return;
+    }
+
     setIsReplyGenerating(true);
     setLastOperationNote("AI 正在生成回复草稿。");
 
     try {
-      const result = await requestComplaintReplyDraft(
-        ticketSnapshot.id,
-        action.type,
-        action.composerTemplate
-      );
+      const result = await requestReplySuggestion(ticketSnapshot, action);
       setComposerValue(result.reply_suggestion);
+      noteReplyDraftGenerated(ticketSnapshot.id);
       setLastOperationNote(
         result.usedFallback
           ? "AI 回复生成失败，已回退为模板文案。"
           : "已生成 AI 回复草稿，可继续编辑后发送。"
       );
     } catch {
-      setComposerValue(action.composerTemplate ?? "");
+      setComposerValue(action.composerTemplate);
       setLastOperationNote("AI 回复生成失败，已回退为模板文案。");
     } finally {
       setIsReplyGenerating(false);
@@ -204,40 +223,84 @@ export function WorkbenchPage() {
       return;
     }
 
-    try {
-      if (action.type !== "reply_suggestion") {
-        await applyAction(selectedTicket.id, action.type);
-        setLastOperationNote(`已执行快捷动作：${action.label}。`);
-      }
+    const ticketId = selectedTicket.id;
+    const ticketSnapshot = selectedTicket;
 
-      if (action.composerTemplate) {
-        await generateReplyDraft(selectedTicket, action);
-      }
-    } catch {
-      setLastOperationNote("快捷动作执行失败，请稍后重试。");
+    switch (action.type) {
+      case "request_photo":
+      case "request_video":
+      case "request_screenshot":
+        handleUpdateStatus(
+          ticketId,
+          "waiting_material",
+          `已执行快捷操作：${action.label}，等待客户补充材料。`,
+          action.label
+        );
+        break;
+      case "continue_refund":
+      case "continue_return_refund":
+      case "continue_exchange":
+      case "continue_resend":
+        setLastOperationNote(`已确认建议动作：${action.label}。该路径需人工继续跟进，不会自动执行。`);
+        break;
+      case "reply_suggestion":
+        setLastOperationNote("正在生成推荐回复草稿。");
+        break;
+      case "escalate":
+        handleUpdateStatus(
+          ticketId,
+          "waiting_escalation",
+          "已提交升级处理，等待进一步复核。",
+          "升级处理"
+        );
+        setLastOperationNote("已切换为待升级，可继续向客户同步处理进度。");
+        break;
+      case "mark_resolved":
+        handleUpdateStatus(
+          ticketId,
+          "resolved",
+          "人工已标记该投诉处理完成。",
+          "标记已处理"
+        );
+        setLastOperationNote("该工单已标记处理完成。");
+        break;
+      default:
+        break;
+    }
+
+    if (action.composerTemplate) {
+      await generateReplyDraft(ticketSnapshot, action);
     }
   }
 
-  async function handleSend() {
+  function handleSend() {
     if (!selectedTicket || !composerValue.trim()) {
       return;
     }
 
     const outgoing = composerValue.trim();
+    const updatedTicketSnapshot: ComplaintTicket = {
+      ...selectedTicket,
+      chat_history: [
+        ...selectedTicket.chat_history,
+        {
+          id: `message-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          role: "agent",
+          text: outgoing,
+          time: "刚刚"
+        }
+      ]
+    };
+    addOperatorMessage(selectedTicket.id, outgoing);
+    setComposerValue("");
+    setLastOperationNote("已发送客户回复，等待进一步材料或人工跟进。");
 
-    try {
-      await addOperatorMessage(selectedTicket.id, outgoing);
-      setComposerValue("");
-      setLastOperationNote("已发送客户回复，等待进一步材料或人工跟进。");
-      await handleAnalyze(
-        selectedTicket,
-        "Agent 已根据最新聊天上下文完成 AI 分析刷新。",
-        "已发送客户回复，等待进一步材料或人工跟进。",
-        "已发送客户回复，正在更新最新 AI 判断。"
-      );
-    } catch {
-      setLastOperationNote("客户回复发送失败，请稍后重试。");
-    }
+    void handleAnalyze(
+      updatedTicketSnapshot,
+      "Agent 已根据最新聊天上下文完成 AI 分析刷新。",
+      "已发送客户回复，等待进一步材料或人工跟进。",
+      "已发送客户回复，等待进一步材料或人工跟进。"
+    );
   }
 
   function handleChatResizeStart(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -252,14 +315,6 @@ export function WorkbenchPage() {
     };
     setChatSizeMode("custom");
     setIsChatResizing(true);
-  }
-
-  if (isBootstrapping) {
-    return <div className="workbench-empty">正在连接模拟后端并加载工单数据…</div>;
-  }
-
-  if (backendError && workbenchTickets.length === 0) {
-    return <div className="workbench-empty">售后工作台无法连接模拟后端：{backendError}</div>;
   }
 
   if (!selectedTicket) {
@@ -303,25 +358,17 @@ export function WorkbenchPage() {
               sizeMode={chatSizeMode}
               isResizing={isChatResizing}
               onComposerChange={setComposerValue}
-              onSend={() => void handleSend()}
+              onSend={handleSend}
               onResizeDragStart={handleChatResizeStart}
             />
           </div>
 
           <AgentPanel
             ticket={selectedTicket}
-            actionCatalog={actionCatalog}
             isAnalyzing={isAgentAnalyzing}
             isReplyGenerating={isReplyGenerating}
             onQuickAction={(action) => void handleQuickAction(action)}
-            onReanalyze={() =>
-              void handleAnalyze(selectedTicket, "已完成 AI 重新分析。")
-            }
-            onRequestReanalysis={() =>
-              void requestReanalysis(selectedTicket.id).then(() => {
-                setLastOperationNote("已标记为待重新分析，可继续点击重新分析。");
-              })
-            }
+            onReanalyze={() => void handleAnalyze(selectedTicket, "已完成 AI 重新分析。")}
           />
         </main>
       </div>

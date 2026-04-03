@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildAnalysisInput } from "../ai/service.js";
-import type { ComplaintTicket } from "../../src/types/workbench.js";
+import { buildAnalysisInput } from "../ai/service";
+import type { ComplaintTicket } from "../../src/types/workbench";
 
 const baseTicket: ComplaintTicket = {
   id: "ticket-service-1",
@@ -12,6 +12,8 @@ const baseTicket: ComplaintTicket = {
   createdAt: "2026-03-31 18:00",
   priority: "中",
   complaint_text: "热水壶壶嘴有磕碰。",
+  issue_type: "外观破损",
+  issue_description: "客户反馈热水壶壶嘴位置存在明显磕碰。",
   product_info: {
     name: "智能热水壶",
     model: "Kettle Flow",
@@ -59,7 +61,7 @@ const baseTicket: ComplaintTicket = {
 };
 
 describe("AI 分析请求上下文", () => {
-  it("会把图片附件和客户最新意图一起带给模型", () => {
+  it("会把图片附件、结构化投诉字段和知识片段一起带给模型", () => {
     const input = buildAnalysisInput(baseTicket);
     const textPart = input.userContent.find((part) => part.type === "text");
     const imagePart = input.userContent.find((part) => part.type === "image_url");
@@ -73,5 +75,8 @@ describe("AI 分析请求上下文", () => {
     });
     expect(JSON.stringify(textPart)).toContain("不想退了");
     expect(JSON.stringify(textPart)).toContain("客户当前倾向结束投诉");
+    expect(JSON.stringify(textPart)).toContain("外观破损");
+    expect(JSON.stringify(textPart)).toContain("客户反馈热水壶壶嘴位置存在明显磕碰");
+    expect(JSON.stringify(textPart)).toContain("knowledge_snippets");
   });
 });

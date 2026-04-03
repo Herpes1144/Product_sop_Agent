@@ -4,11 +4,11 @@ import {
   type ServerResponse
 } from "node:http";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { extname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { config as loadEnv } from "dotenv";
-import { createConfiguredBackendService } from "./data/backend.js";
-import { handleApiRequest } from "./http/router.js";
+import { analyzeTicketWithAi, generateReplyWithAi } from "./ai/service";
+import { getProviderHealth } from "./ai/provider";
+import type { GenerateReplyRequest, AnalyzeTicketRequest } from "../src/types/ai";
 
 const localEnvPath = resolve(process.cwd(), ".env.local");
 const defaultEnvPath = resolve(process.cwd(), ".env");
@@ -20,7 +20,6 @@ if (existsSync(localEnvPath)) {
 }
 
 const PORT = Number(process.env.AI_PROXY_PORT || process.env.PORT || 8788);
-const backendService = createConfiguredBackendService();
 
 function sendJson(
   response: ServerResponse<IncomingMessage>,
@@ -37,31 +36,10 @@ function sendJson(
   response.end(JSON.stringify(payload));
 }
 
-async function sendFile(response: ServerResponse<IncomingMessage>, filePath: string) {
-  try {
-    const content = await readFile(filePath);
-    const extension = extname(filePath).toLowerCase();
-    const contentType =
-      extension === ".png"
-        ? "image/png"
-        : extension === ".jpg" || extension === ".jpeg"
-          ? "image/jpeg"
-          : extension === ".mp4"
-            ? "video/mp4"
-            : "application/octet-stream";
-    response.writeHead(200, {
-      "Content-Type": contentType,
-      "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": "*"
-    });
-    response.end(content);
-  } catch {
-    sendJson(response, 404, { message: "File not found." });
-  }
-}
-
-function readRequestBody(request: IncomingMessage): Promise<unknown> {
-  return new Promise((resolveBody, reject) => {
+function readRequestBody(
+  request: IncomingMessage
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
 
     request.on("data", (chunk) => {
@@ -70,12 +48,12 @@ function readRequestBody(request: IncomingMessage): Promise<unknown> {
 
     request.on("end", () => {
       if (chunks.length === 0) {
-        resolveBody({});
+        resolve({});
         return;
       }
 
       try {
-        resolveBody(JSON.parse(Buffer.concat(chunks).toString("utf-8")));
+        resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8")));
       } catch (error) {
         reject(error);
       }
@@ -93,21 +71,57 @@ createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "GET" && url.pathname.startsWith("/uploads/")) {
-    const filePath = resolve(backendService.rootDir, `.${url.pathname}`);
-    await sendFile(response, filePath);
+  if (request.method === "GET" && url.pathname === "/api/ai/health") {
+    const health = await getProviderHealth();
+    sendJson(response, 200, health);
     return;
   }
 
-  try {
-    const body = request.method === "GET" ? {} : await readRequestBody(request);
-    const result = await handleApiRequest(request.method || "GET", url.pathname, body);
-    sendJson(response, result.statusCode, result.payload);
-  } catch (error) {
-    sendJson(response, 500, {
-      message: error instanceof Error ? error.message : "Server request failed."
-    });
+  if (request.method === "POST" && url.pathname === "/api/ai/analyze-ticket") {
+    try {
+      const body = (await readRequestBody(request)) as AnalyzeTicketRequest;
+
+      if (!body?.ticket) {
+        sendJson(response, 400, { message: "Missing ticket payload." });
+        return;
+      }
+
+      const result = await analyzeTicketWithAi(body.ticket);
+      sendJson(response, 200, result);
+      return;
+    } catch (error) {
+      sendJson(response, 500, {
+        message: error instanceof Error ? error.message : "Analyze request failed."
+      });
+      return;
+    }
   }
+
+  if (request.method === "POST" && url.pathname === "/api/ai/generate-reply") {
+    try {
+      const body = (await readRequestBody(request)) as GenerateReplyRequest;
+
+      if (!body?.ticket || !body?.actionType) {
+        sendJson(response, 400, { message: "Missing reply generation payload." });
+        return;
+      }
+
+      const result = await generateReplyWithAi(
+        body.ticket,
+        body.actionType,
+        body.fallbackText
+      );
+      sendJson(response, 200, result);
+      return;
+    } catch (error) {
+      sendJson(response, 500, {
+        message: error instanceof Error ? error.message : "Reply request failed."
+      });
+      return;
+    }
+  }
+
+  sendJson(response, 404, { message: "Not found." });
 }).listen(PORT, () => {
   console.log(`AI proxy server listening on http://127.0.0.1:${PORT}`);
 });

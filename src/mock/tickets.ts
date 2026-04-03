@@ -1,4 +1,4 @@
-import type { ComplaintTicket } from "../types/workbench.js";
+import type { ComplaintTicket } from "../types/workbench";
 
 export const mockTickets: ComplaintTicket[] = [
   {
@@ -8,6 +8,9 @@ export const mockTickets: ComplaintTicket[] = [
     priority: "高",
     complaint_text:
       "收到电煮锅时外壳边角开裂，锅盖还有明显划痕，外箱也被压瘪了。我刚拆箱就发现问题，现在想知道怎么处理。",
+    issue_type: "外观破损",
+    issue_description:
+      "收到电煮锅时外壳边角开裂，锅盖还有明显划痕，外箱也被压瘪了。",
     product_info: {
       name: "恒温电煮锅",
       model: "EZ-POT 2.0",
@@ -22,6 +25,7 @@ export const mockTickets: ComplaintTicket[] = [
     problem_type: "明显破损 / 瑕疵",
     ai_question_summary:
       "客户反馈开箱即见外壳开裂和锅盖划痕，外包装受压，属于可见性破损投诉，证据已较完整。",
+    primary_action: "reply_suggestion",
     sop_judgement:
       "命中“明显破损/瑕疵投诉初步分流”SOP。当前订单与商品信息完整，照片包含整体图、细节图和外包装图，且仍在售后时效内，可继续进入处理路径，同时保留运输破损归因提示。",
     next_action: [
@@ -90,6 +94,9 @@ export const mockTickets: ComplaintTicket[] = [
     priority: "中",
     complaint_text:
       "这个便携榨汁杯充满电以后还是按了没反应，灯会闪两下就停。我不确定是不会用还是机器有问题。",
+    issue_type: "功能异常",
+    issue_description:
+      "这个便携榨汁杯充满电以后还是按了没反应，灯会闪两下就停。",
     product_info: {
       name: "便携榨汁杯",
       model: "Blend-Go S1",
@@ -102,6 +109,7 @@ export const mockTickets: ComplaintTicket[] = [
     order_status: "已签收",
     status: "waiting_material",
     problem_type: "功能异常 / 无法使用",
+    primary_action: "request_video",
     ai_question_summary:
       "客户反馈设备无法启动，但目前只有文字描述，没有操作视频，暂时无法排除使用方式问题。",
     sop_judgement:
@@ -162,6 +170,9 @@ export const mockTickets: ComplaintTicket[] = [
     priority: "高",
     complaint_text:
       "用户反馈耳机宣传写着低延迟、沉浸式音效，但实际打游戏还是会有明显延迟，觉得这属于质量问题，要求直接退款。",
+    issue_type: "与描述不符",
+    issue_description:
+      "耳机宣传写着低延迟、沉浸式音效，但实际打游戏还是会有明显延迟。",
     product_info: {
       name: "无线游戏耳机",
       model: "Sonic Air Pro",
@@ -174,6 +185,7 @@ export const mockTickets: ComplaintTicket[] = [
     order_status: "交易成功",
     status: "waiting_escalation",
     problem_type: "描述不符 / 边界模糊争议",
+    primary_action: "request_screenshot",
     ai_question_summary:
       "该投诉集中在宣传体验与实际使用感受不一致，涉及主观体验和页面承诺边界，争议性较高。",
     sop_judgement:
@@ -233,6 +245,9 @@ export const mockTickets: ComplaintTicket[] = [
     priority: "高",
     complaint_text:
       "儿童恒温水杯用了两天后突然不加热，之前已经联系过一次客服但没解决。家里人担心会不会有安全问题，希望尽快给个明确说法。",
+    issue_type: "功能异常",
+    issue_description:
+      "儿童恒温水杯用了两天后突然不加热，且客户担心是否存在安全问题。",
     product_info: {
       name: "儿童恒温水杯",
       model: "KidWarm X5",
@@ -245,6 +260,7 @@ export const mockTickets: ComplaintTicket[] = [
     order_status: "已签收",
     status: "pending",
     problem_type: "功能异常 / 无法使用",
+    primary_action: "request_video",
     ai_question_summary:
       "客户反映加热功能失效，且存在历史沟通未解决和潜在安全风险，需要谨慎处理。",
     sop_judgement:

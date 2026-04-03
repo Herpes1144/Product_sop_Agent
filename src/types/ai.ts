@@ -1,6 +1,7 @@
 import type { ComplaintTicket, NextActionType } from "./workbench";
 
 export type QualityIssueJudgement = "yes" | "no" | "unclear";
+export type AttachmentMatchJudgement = "match" | "mismatch" | "unclear" | "no_image";
 
 export type RecommendedResultType =
   | "waiting_material"
@@ -33,6 +34,9 @@ export interface AiAnalysisResult {
   manual_guidance?: string;
   customer_intent_summary?: string;
   analyzed_attachment_count?: number;
+  material_assessment?: string;
+  attachment_match_judgement?: AttachmentMatchJudgement;
+  knowledge_refs?: string[];
   usedFallback?: boolean;
   fallbackReason?: AnalysisFallbackReason | null;
 }
@@ -56,7 +60,6 @@ export interface GenerateReplyRequest {
 }
 
 export interface AiProviderHealth {
-  status: "ready" | "missing_config" | "unreachable" | "degraded";
   configured: boolean;
   reachable: boolean;
   provider: "dashscope";

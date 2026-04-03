@@ -20,18 +20,7 @@ async function postJson<TResponse, TRequest>(
   });
 
   if (!response.ok) {
-    let message = `Request failed: ${response.status}`;
-
-    try {
-      const payload = (await response.json()) as { message?: string };
-      if (payload?.message) {
-        message = payload.message;
-      }
-    } catch {
-      // Ignore JSON parsing failures and keep the status message.
-    }
-
-    throw new Error(message);
+    throw new Error(`Request failed: ${response.status}`);
   }
 
   return (await response.json()) as TResponse;

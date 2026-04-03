@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   appendCustomerAttachments,
   appendCustomerMessage,
+  clearSandboxState,
   createComplaintFromOrder,
   createSandboxState,
+  getPersistedSandboxState,
+  persistSandboxState,
   syncTicketFromComplaint
 } from "../lib/sandbox-store";
 
@@ -13,8 +16,8 @@ describe("sandbox store", () => {
     const nextState = createComplaintFromOrder(state, {
       customerId: "customer-1",
       orderId: "order-new-1",
-      complaintType: "明显破损 / 瑕疵",
-      complaintText: "收到商品时边角有磕碰。",
+      issueType: "外观破损",
+      issueDescription: "收到商品时边角有磕碰。",
       attachments: []
     });
 
@@ -23,6 +26,10 @@ describe("sandbox store", () => {
 
     expect(ticket.order_id).toBe("TB20260331001");
     expect(ticket.complaint_text).toContain("边角有磕碰");
+    expect(ticket.issue_type).toBe("外观破损");
+    expect(ticket.issue_description).toBe("收到商品时边角有磕碰。");
+    expect(createdComplaint.materialStatus).toBe("none");
+    expect(createdComplaint.latestCustomerIntent).toContain("等待售后初步判断");
     expect(nextState.eventLogs[0]?.type).toBe("complaint_created");
   });
 
@@ -31,8 +38,8 @@ describe("sandbox store", () => {
     state = createComplaintFromOrder(state, {
       customerId: "customer-1",
       orderId: "order-new-1",
-      complaintType: "明显破损 / 瑕疵",
-      complaintText: "收到商品时边角有磕碰。",
+      issueType: "外观破损",
+      issueDescription: "收到商品时边角有磕碰。",
       attachments: []
     });
 
@@ -53,7 +60,32 @@ describe("sandbox store", () => {
 
     expect(state.complaints[0].reanalyzeAvailable).toBe(true);
     expect(state.complaints[0].attachments).toHaveLength(1);
+    expect(state.complaints[0].materialStatus).toBe("sufficient");
+    expect(state.complaints[0].latestCustomerIntent).toContain("已经补充说明");
     expect(state.eventLogs[0]?.type).toBe("attachment_uploaded");
     expect(state.eventLogs[1]?.type).toBe("customer_message_sent");
+  });
+
+  it("持久化状态默认保留，只有手动清理时才会移除", () => {
+    clearSandboxState();
+
+    let state = createSandboxState();
+    state = createComplaintFromOrder(state, {
+      customerId: "customer-1",
+      orderId: "order-new-1",
+      issueType: "功能异常",
+      issueDescription: "电烤盘升温异常。",
+      attachments: []
+    });
+
+    persistSandboxState(state);
+
+    const persisted = getPersistedSandboxState();
+
+    expect(persisted?.complaints[0]?.issueDescription).toBe("电烤盘升温异常。");
+
+    clearSandboxState();
+
+    expect(getPersistedSandboxState()).toBeNull();
   });
 });

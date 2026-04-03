@@ -1,3 +1,5 @@
+import type { RecommendedResultType } from "./ai";
+
 export type TicketStatus =
   | "pending"
   | "waiting_material"
@@ -67,9 +69,9 @@ export interface ComplaintTicket {
   ticketNo: string;
   createdAt: string;
   priority: PriorityLevel;
-  complaint_type?: string;
-  path_tag?: string;
   complaint_text: string;
+  issue_type: string;
+  issue_description: string;
   product_info: ProductInfo;
   order_id: string;
   order_status: string;
@@ -77,19 +79,26 @@ export interface ComplaintTicket {
   problem_type: string;
   ai_question_summary: string;
   sop_judgement: string;
+  primary_action?: NextActionType;
   next_action: ActionItem[];
   chat_history: ChatMessage[];
   processing_record: ProcessingRecordItem[];
   attachment_list: string[];
   attachment_assets?: TicketAttachmentAsset[];
   recording_summary: string;
+  recommended_result_type?: RecommendedResultType | null;
   aiSuggestedStatus?: TicketStatus | null;
   reanalyze_available?: boolean;
-  reanalyze_pending?: boolean;
   analysis_used_fallback?: boolean;
   analysis_fallback_reason?: string | null;
   manual_guidance?: string;
   customer_intent_summary?: string;
   analyzed_attachment_count?: number;
-  primary_action?: NextActionType | null;
+  material_assessment?: string;
+  attachment_match_judgement?: "match" | "mismatch" | "unclear" | "no_image";
+  knowledge_refs?: string[];
+  demo_path_key?: string | null;
+  demo_path_label?: string | null;
+  demo_path_expectation?: string | null;
+  demo_path_reason?: string | null;
 }

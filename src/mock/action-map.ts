@@ -1,4 +1,4 @@
-import type { ActionItem, NextActionType } from "../types/workbench.js";
+import type { ActionItem, NextActionType } from "../types/workbench";
 
 export const actionLabelMap: Record<NextActionType, string> = {
   reply_suggestion: "推荐回复",
@@ -12,8 +12,6 @@ export const actionLabelMap: Record<NextActionType, string> = {
   continue_resend: "继续处理-补发路径",
   mark_resolved: "标记已处理"
 };
-
-export const allActionTypes = Object.keys(actionLabelMap) as NextActionType[];
 
 export const actionDefinitionMap: Record<NextActionType, ActionItem> = {
   reply_suggestion: {
@@ -88,8 +86,4 @@ export function getActionDefinition(type: NextActionType): ActionItem {
 
 export function buildActionItems(types: NextActionType[]): ActionItem[] {
   return types.map((type) => getActionDefinition(type));
-}
-
-export function buildActionCatalog(): ActionItem[] {
-  return buildActionItems(allActionTypes);
 }

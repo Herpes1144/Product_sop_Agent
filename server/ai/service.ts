@@ -1,12 +1,13 @@
-import { actionDefinitionMap } from "../../src/mock/action-map.js";
-import type { AiAnalysisResult, ReplySuggestionResult } from "../../src/types/ai.js";
-import type { ComplaintTicket, NextActionType } from "../../src/types/workbench.js";
+import { actionDefinitionMap } from "../../src/mock/action-map";
+import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base";
+import type { AiAnalysisResult, ReplySuggestionResult } from "../../src/types/ai";
+import type { ComplaintTicket, NextActionType } from "../../src/types/workbench";
 import {
   buildFallbackAnalysis,
   fallbackReplySuggestion,
   finalizeAnalysisResult
-} from "./fallbacks.js";
-import { completeJsonObject, ProviderError } from "./provider.js";
+} from "./fallbacks";
+import { completeJsonObject, ProviderError } from "./provider";
 
 function summarizeAttachments(ticket: ComplaintTicket): string {
   if (ticket.attachment_list.length === 0) {
@@ -14,6 +15,18 @@ function summarizeAttachments(ticket: ComplaintTicket): string {
   }
 
   return ticket.attachment_list.join("、");
+}
+
+function summarizeChatHistory(ticket: ComplaintTicket): string[] {
+  return ticket.chat_history.map(
+    (message) => `${message.role === "customer" ? "客户" : "售后"}：${message.text}`
+  );
+}
+
+function summarizeProcessingRecord(ticket: ComplaintTicket): string[] {
+  return ticket.processing_record.map(
+    (record) => `${record.actor} · ${record.action}：${record.note}`
+  );
 }
 
 function summarizeCustomerIntent(ticket: ComplaintTicket): {
@@ -83,29 +96,43 @@ export function buildAnalysisInput(ticket: ComplaintTicket): {
           url: asset.previewUrl
         }
       })) ?? [];
+  const knowledgeSnippets = buildKnowledgeSnippets(ticket);
 
   return {
     systemPrompt:
-      "你是企业售后质量投诉分流助手。请综合客户投诉、附件图片、最近聊天和处理记录进行判断。请只输出一个 JSON 对象，不要输出额外说明。必须使用中文。输出字段必须完整：ai_question_summary, problem_type, quality_issue_judgement, need_more_materials, should_escalate, sop_judgement, primary_action, next_actions, recommended_result_type, reply_suggestion, recording_summary, reanalyze_available, manual_guidance, customer_intent_summary, analyzed_attachment_count。若客户明确表示不再继续处理或不再退款，优先建议 mark_resolved / resolved。状态和动作必须保守，不得自动承诺退款或外部结果。",
+      "你是企业售后质量投诉分流助手。请综合工单字段、附件图片、最近聊天、处理记录、本地 SOP 规则片段和知识片段进行判断。请只输出一个 JSON 对象，不要输出额外说明。必须使用中文。输出字段必须完整：ai_question_summary, problem_type, quality_issue_judgement, need_more_materials, should_escalate, sop_judgement, primary_action, next_actions, recommended_result_type, reply_suggestion, recording_summary, reanalyze_available, manual_guidance, customer_intent_summary, analyzed_attachment_count, material_assessment, attachment_match_judgement, knowledge_refs。若客户明确表示不再继续处理或不再退款，优先建议 mark_resolved / resolved。若有图片，必须判断图片是否与投诉内容一致；无法判断时给出补拍建议。状态和动作必须保守，不得自动承诺退款或外部结果。",
     userContent: [
       {
         type: "text",
         text: JSON.stringify(
           {
-            ticket_id: ticket.id,
-            complaint_text: ticket.complaint_text,
-            product_info: ticket.product_info,
-            order_id: ticket.order_id,
-            order_status: ticket.order_status,
-            ticket_status: ticket.status,
-            problem_type_hint: ticket.problem_type,
-            attachments: summarizeAttachments(ticket),
-            image_attachment_count: imageParts.length,
+            ticket: {
+              ticket_id: ticket.id,
+              issue_type: ticket.issue_type || ticket.problem_type,
+              issue_description: ticket.issue_description || ticket.complaint_text,
+              complaint_text: ticket.complaint_text,
+              product_info: ticket.product_info,
+              order_id: ticket.order_id,
+              order_status: ticket.order_status,
+              ticket_status: ticket.status,
+              problem_type_hint: ticket.problem_type
+            },
             latest_customer_message: latestCustomerMessage,
             customer_intent_summary_hint: customerIntentSummary,
-            chat_history: ticket.chat_history,
-            processing_record: ticket.processing_record,
-            current_actions: ticket.next_action.map((action) => action.type),
+            chat_history_summary: summarizeChatHistory(ticket),
+            processing_record_summary: summarizeProcessingRecord(ticket),
+            attachments: {
+              names: summarizeAttachments(ticket),
+              image_attachment_count: imageParts.length,
+              assets:
+                ticket.attachment_assets?.map((asset) => ({
+                  name: asset.name,
+                  kind: asset.kind,
+                  mimeType: asset.mimeType,
+                  uploadedAt: asset.uploadedAt
+                })) ?? []
+            },
+            knowledge_snippets: knowledgeSnippets,
             output_rules: {
               material_actions: ["request_video", "request_photo", "request_screenshot"],
               escalate_action: "escalate",
@@ -115,7 +142,8 @@ export function buildAnalysisInput(ticket: ComplaintTicket): {
                 "continue_exchange",
                 "continue_resend"
               ],
-              resolved_action: "mark_resolved"
+              resolved_action: "mark_resolved",
+              attachment_match_judgement_values: ["match", "mismatch", "unclear", "no_image"]
             }
           },
           null,
@@ -140,8 +168,14 @@ function buildReplyPrompt(
       "你是企业售后一线沟通助手。请基于给定动作生成一段可编辑中文回复。回复必须克制、专业，不得做自动退款、自动审批、确定性赔付等超范围承诺。只输出一个 JSON 对象，字段必须完整：reply_suggestion, tone, constrained。",
     userPrompt: JSON.stringify(
       {
+        issue_type: ticket.issue_type,
+        issue_description: ticket.issue_description,
         complaint_text: ticket.complaint_text,
         customer_last_message: ticket.chat_history[ticket.chat_history.length - 1]?.text ?? "",
+        customer_intent_summary: ticket.customer_intent_summary ?? "",
+        attachment_match_judgement: ticket.attachment_match_judgement ?? "unclear",
+        material_assessment: ticket.material_assessment ?? "",
+        knowledge_refs: ticket.knowledge_refs ?? buildKnowledgeSnippets(ticket),
         action_type: actionType,
         action_label: actionDefinitionMap[actionType].label,
         action_description: actionDefinitionMap[actionType].description,

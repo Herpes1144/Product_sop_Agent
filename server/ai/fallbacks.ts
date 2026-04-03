@@ -1,11 +1,13 @@
-import { actionDefinitionMap } from "../../src/mock/action-map.js";
+import { actionDefinitionMap } from "../../src/mock/action-map";
+import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base";
 import type {
   AiAnalysisResult,
   AnalysisFallbackReason,
+  AttachmentMatchJudgement,
   ReplySuggestionResult,
   RecommendedResultType
-} from "../../src/types/ai.js";
-import type { ComplaintTicket, NextActionType } from "../../src/types/workbench.js";
+} from "../../src/types/ai";
+import type { ComplaintTicket, NextActionType } from "../../src/types/workbench";
 
 const actionTypes = Object.keys(actionDefinitionMap) as NextActionType[];
 
@@ -47,16 +49,23 @@ function inferMaterialAction(
 
 function inferContinueAction(
   nextActions: NextActionType[],
-  isHighRisk: boolean
+  problemType: unknown
 ): NextActionType {
-  const candidate = nextActions.find((action) => action.startsWith("continue_"));
+  const continueAction = nextActions.find((action) => action.startsWith("continue_"));
 
-  if (candidate) {
-    return candidate;
+  if (continueAction) {
+    return continueAction;
   }
 
-  if (isHighRisk) {
-    return "escalate";
+  const normalizedProblemType =
+    typeof problemType === "string" ? problemType.trim() : "";
+
+  if (normalizedProblemType.includes("功能异常")) {
+    return "continue_exchange";
+  }
+
+  if (normalizedProblemType.includes("与描述不符")) {
+    return "continue_return_refund";
   }
 
   return "continue_return_refund";
@@ -97,22 +106,66 @@ function detectCustomerWantsClosure(latestCustomerMessage: string): boolean {
   );
 }
 
+function normalizeAttachmentMatchJudgement(
+  value: unknown,
+  attachmentCount: number
+): AttachmentMatchJudgement {
+  switch (value) {
+    case "match":
+    case "mismatch":
+    case "unclear":
+    case "no_image":
+      return value;
+    default:
+      return attachmentCount === 0 ? "no_image" : "unclear";
+  }
+}
+
+function buildMaterialAssessment(input: {
+  attachmentMatchJudgement: AttachmentMatchJudgement;
+  attachmentCount: number;
+  needMoreMaterials: boolean;
+}): string {
+  if (input.attachmentMatchJudgement === "match") {
+    return "当前图片与投诉描述基本一致，可结合细节清晰度继续推进判断。";
+  }
+
+  if (input.attachmentMatchJudgement === "mismatch") {
+    return "当前图片与投诉内容存在偏差，暂不足以支撑当前投诉结论。";
+  }
+
+  if (input.attachmentCount === 0) {
+    return "当前暂无附件，需先补充整体图、问题细节图或相关视频。";
+  }
+
+  if (input.needMoreMaterials) {
+    return "当前材料仍不完整，建议继续补充更清晰、更贴合投诉内容的材料。";
+  }
+
+  if (input.attachmentCount > 0) {
+    return "客户已补充照片或视频材料，当前可进入下一步人工复核或继续处理判断。";
+  }
+
+  return "当前材料仍需人工结合聊天与处理记录继续复核。";
+}
+
 function buildManualGuidance(input: {
   fallbackReason: AnalysisFallbackReason | null;
   primaryAction: NextActionType;
   customerWantsClosure: boolean;
   attachmentCount: number;
+  attachmentMatchJudgement: AttachmentMatchJudgement;
 }): string {
   if (input.customerWantsClosure) {
     return "客户已明确表示不再继续处理，可人工确认后执行“标记已处理”，并补一句结案确认。";
   }
 
-  if (input.primaryAction === "request_photo" || input.primaryAction === "request_video" || input.primaryAction === "request_screenshot") {
-    return "建议人工先核对附件是否清晰、是否覆盖整体与细节，再决定是否继续补材料。";
+  if (input.attachmentMatchJudgement === "mismatch") {
+    return "建议人工先核对图片是否与投诉商品和问题点一致，必要时请客户重新上传整体图与细节图。";
   }
 
-  if (input.attachmentCount > 0) {
-    return "客户已补充材料，建议人工结合最新附件和聊天内容推进下一步处理判断。";
+  if (input.primaryAction === "request_photo" || input.primaryAction === "request_video" || input.primaryAction === "request_screenshot") {
+    return "建议人工先核对附件是否清晰、是否覆盖整体与细节，再决定是否继续补材料。";
   }
 
   if (input.primaryAction === "escalate") {
@@ -152,12 +205,8 @@ export function finalizeAnalysisResult(
   const nextActions = Array.isArray(raw.next_actions)
     ? raw.next_actions.filter(isActionType)
     : [];
-  const latestCustomerMessage = context.latestCustomerMessage ?? "";
-  const hasMaterialEvidence =
-    context.attachmentCount > 0 ||
-    /(补图|补照片|已上传|附件|图片|视频)/.test(latestCustomerMessage);
-  const needMoreMaterials = Boolean(raw.need_more_materials) && !hasMaterialEvidence;
-  const shouldEscalate = Boolean(raw.should_escalate);
+  let needMoreMaterials = Boolean(raw.need_more_materials);
+  let shouldEscalate = Boolean(raw.should_escalate);
   let recommendedResultType = toResultType(raw.recommended_result_type);
   let primaryAction = isActionType(raw.primary_action)
     ? raw.primary_action
@@ -168,14 +217,18 @@ export function finalizeAnalysisResult(
         context.isHighRisk
       );
   let fallbackReason: AnalysisFallbackReason | null = null;
+  const latestCustomerMessage = context.latestCustomerMessage ?? "";
   const customerWantsClosure = detectCustomerWantsClosure(latestCustomerMessage);
+  const hasImageAttachment = (context.imageAttachmentCount ?? 0) > 0;
+  const attachmentMatchJudgement = normalizeAttachmentMatchJudgement(
+    raw.attachment_match_judgement,
+    context.attachmentCount
+  );
   const customerIntentSummary =
     typeof raw.customer_intent_summary === "string" && raw.customer_intent_summary.trim()
       ? raw.customer_intent_summary.trim()
       : customerWantsClosure
         ? "客户已表示不再继续退款或处理，倾向直接结束本次投诉。"
-        : hasMaterialEvidence
-          ? "客户已补充材料，可结合最新附件与聊天继续推进判断。"
         : latestCustomerMessage
           ? "已结合客户最新聊天进行分析。"
           : "暂无新的客户聊天变化。";
@@ -183,18 +236,30 @@ export function finalizeAnalysisResult(
   if (customerWantsClosure) {
     primaryAction = "mark_resolved";
     recommendedResultType = "resolved";
-    fallbackReason = "rule_corrected";
-  } else if (needMoreMaterials) {
-    primaryAction = inferMaterialAction(nextActions, context.attachmentCount);
-    recommendedResultType = "waiting_material";
-    fallbackReason = "rule_corrected";
-  } else if (hasMaterialEvidence && recommendedResultType === "waiting_material") {
-    primaryAction = inferContinueAction(nextActions, context.isHighRisk);
-    recommendedResultType = primaryAction === "escalate" ? "waiting_escalation" : "continue_path";
+    needMoreMaterials = false;
+    shouldEscalate = false;
     fallbackReason = "rule_corrected";
   } else if (shouldEscalate || (context.isHighRisk && recommendedResultType === "manual_review")) {
     primaryAction = "escalate";
     recommendedResultType = "waiting_escalation";
+    needMoreMaterials = false;
+    shouldEscalate = true;
+    fallbackReason = "rule_corrected";
+  } else if (hasImageAttachment) {
+    needMoreMaterials = false;
+
+    if (attachmentMatchJudgement === "mismatch") {
+      primaryAction = "reply_suggestion";
+      recommendedResultType = "manual_review";
+    } else {
+      primaryAction = inferContinueAction(nextActions, raw.problem_type);
+      recommendedResultType = "continue_path";
+    }
+
+    fallbackReason = "rule_corrected";
+  } else if (needMoreMaterials) {
+    primaryAction = inferMaterialAction(nextActions, context.attachmentCount);
+    recommendedResultType = "waiting_material";
     fallbackReason = "rule_corrected";
   } else if (primaryAction === "mark_resolved") {
     recommendedResultType = "resolved";
@@ -214,6 +279,15 @@ export function finalizeAnalysisResult(
     typeof raw.reply_suggestion === "string" && raw.reply_suggestion.trim()
       ? raw.reply_suggestion.trim()
       : fallbackReplySuggestion(primaryAction).reply_suggestion;
+  const knowledgeRefs =
+    Array.isArray(raw.knowledge_refs) && raw.knowledge_refs.every((item) => typeof item === "string")
+      ? raw.knowledge_refs
+      : buildKnowledgeSnippets({
+          ...ticketLike(context.isHighRisk),
+          issue_type: typeof raw.problem_type === "string" && raw.problem_type.trim()
+            ? raw.problem_type.trim()
+            : "其他质量问题"
+        });
 
   return {
     ai_question_summary:
@@ -253,15 +327,58 @@ export function finalizeAnalysisResult(
             fallbackReason,
             primaryAction,
             customerWantsClosure,
-            attachmentCount: context.attachmentCount
+            attachmentCount: context.attachmentCount,
+            attachmentMatchJudgement
           }),
     customer_intent_summary: customerIntentSummary,
     analyzed_attachment_count:
       typeof raw.analyzed_attachment_count === "number"
         ? raw.analyzed_attachment_count
         : context.imageAttachmentCount ?? context.attachmentCount,
+    material_assessment:
+      typeof raw.material_assessment === "string" && raw.material_assessment.trim()
+        ? raw.material_assessment.trim()
+        : buildMaterialAssessment({
+            attachmentMatchJudgement,
+            attachmentCount: context.attachmentCount,
+            needMoreMaterials
+          }),
+    attachment_match_judgement: attachmentMatchJudgement,
+    knowledge_refs: Array.from(new Set(knowledgeRefs)),
     usedFallback: fallbackReason !== null,
     fallbackReason
+  };
+}
+
+function ticketLike(isHighRisk: boolean): ComplaintTicket {
+  return {
+    id: "fallback-ticket",
+    ticketNo: "fallback-ticket",
+    createdAt: "",
+    priority: isHighRisk ? "高" : "中",
+    complaint_text: "",
+    issue_type: "其他质量问题",
+    issue_description: "",
+    product_info: {
+      name: "",
+      model: "",
+      specification: "",
+      category: "",
+      receiveTime: "",
+      isHighRisk
+    },
+    order_id: "",
+    order_status: "",
+    status: "pending",
+    problem_type: "其他质量问题",
+    ai_question_summary: "",
+    sop_judgement: "",
+    primary_action: "reply_suggestion",
+    next_action: [],
+    chat_history: [],
+    processing_record: [],
+    attachment_list: [],
+    recording_summary: ""
   };
 }
 
@@ -301,7 +418,10 @@ export function buildFallbackAnalysis(
         ticket.next_action.find((action) => action.type === "reply_suggestion")
           ?.composerTemplate ?? fallbackReplySuggestion(primaryAction).reply_suggestion,
       recording_summary: ticket.recording_summary,
-      reanalyze_available: true
+      reanalyze_available: true,
+      material_assessment: ticket.material_assessment,
+      attachment_match_judgement: ticket.attachment_match_judgement,
+      knowledge_refs: ticket.knowledge_refs
     },
     {
       attachmentCount: ticket.attachment_list.length,
