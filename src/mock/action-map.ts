@@ -1,4 +1,4 @@
-import type { ActionItem, NextActionType } from "../types/workbench";
+import type { ActionItem, NextActionType } from "../types/workbench.js";
 
 export const actionLabelMap: Record<NextActionType, string> = {
   reply_suggestion: "推荐回复",

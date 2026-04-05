@@ -1,4 +1,4 @@
-import type { CreateComplaintInput, IssueType } from "../types/sandbox";
+import type { CreateComplaintInput, IssueType } from "../types/sandbox.js";
 
 export type DemoPathId = "material" | "escalation" | "resolved";
 

@@ -14,7 +14,17 @@ const filesToCheck = [
   "server/index.ts",
   "server/http/router.ts",
   "server/ai/service.ts",
-  "server/ai/fallbacks.ts"
+  "server/ai/fallbacks.ts",
+  "src/lib/sandbox-store.ts",
+  "src/mock/action-map.ts",
+  "src/mock/demo-paths.ts",
+  "src/mock/issue-types.ts",
+  "src/mock/knowledge-base.ts",
+  "src/mock/status-map.ts",
+  "src/mock/tickets.ts",
+  "src/types/ai.ts",
+  "src/types/sandbox.ts",
+  "src/types/workbench.ts"
 ];
 
 const extensionlessRelativeImportPattern =

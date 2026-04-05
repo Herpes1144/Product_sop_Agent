@@ -1,5 +1,5 @@
-import type { NextActionType, ComplaintTicket, ProductInfo, ChatMessage, ProcessingRecordItem, PriorityLevel, TicketStatus } from "./workbench";
-import type { AnalysisFallbackReason, AttachmentMatchJudgement, RecommendedResultType } from "./ai";
+import type { NextActionType, ComplaintTicket, ProductInfo, ChatMessage, ProcessingRecordItem, PriorityLevel, TicketStatus } from "./workbench.js";
+import type { AnalysisFallbackReason, AttachmentMatchJudgement, RecommendedResultType } from "./ai.js";
 
 export type IssueType =
   | "外观破损"

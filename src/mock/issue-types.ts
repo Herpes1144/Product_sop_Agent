@@ -1,4 +1,4 @@
-import type { IssueType } from "../types/sandbox";
+import type { IssueType } from "../types/sandbox.js";
 
 export const issueTypeOptions: IssueType[] = [
   "外观破损",

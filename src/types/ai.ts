@@ -1,4 +1,4 @@
-import type { ComplaintTicket, NextActionType } from "./workbench";
+import type { ComplaintTicket, NextActionType } from "./workbench.js";
 
 export type QualityIssueJudgement = "yes" | "no" | "unclear";
 export type AttachmentMatchJudgement = "match" | "mismatch" | "unclear" | "no_image";

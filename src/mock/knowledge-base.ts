@@ -1,4 +1,4 @@
-import type { ComplaintTicket } from "../types/workbench";
+import type { ComplaintTicket } from "../types/workbench.js";
 
 const issueKnowledgeMap: Record<string, string[]> = {
   外观破损: ["明显破损图片要求", "外包装核验规则", "开箱可见瑕疵处理建议"],

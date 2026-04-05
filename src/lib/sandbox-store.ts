@@ -1,9 +1,9 @@
-import { buildActionItems } from "../mock/action-map";
-import { mockTickets } from "../mock/tickets";
-import type { AiAnalysisResult } from "../types/ai";
-import type { AttachmentAsset, ComplaintCase, CreateComplaintInput, CustomerProfile, DraftAttachmentAsset, MaterialStatus, OrderRecord, SandboxEvent, SandboxState } from "../types/sandbox";
-import type { RecommendedResultType } from "../types/ai";
-import type { ChatMessage, ComplaintTicket, ProcessingRecordItem, TicketStatus } from "../types/workbench";
+import { buildActionItems } from "../mock/action-map.js";
+import { mockTickets } from "../mock/tickets.js";
+import type { AiAnalysisResult } from "../types/ai.js";
+import type { AttachmentAsset, ComplaintCase, CreateComplaintInput, CustomerProfile, DraftAttachmentAsset, MaterialStatus, OrderRecord, SandboxEvent, SandboxState } from "../types/sandbox.js";
+import type { RecommendedResultType } from "../types/ai.js";
+import type { ChatMessage, ComplaintTicket, ProcessingRecordItem, TicketStatus } from "../types/workbench.js";
 
 const SANDBOX_STORAGE_KEY = "quality-complaint-sandbox-v1";
 const DEFAULT_DAY_STAMP = "20260331";

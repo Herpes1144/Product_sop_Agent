@@ -1,4 +1,4 @@
-import type { RecommendedResultType } from "./ai";
+import type { RecommendedResultType } from "./ai.js";
 
 export type TicketStatus =
   | "pending"
