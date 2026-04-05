@@ -150,6 +150,9 @@ export function AgentPanel({
   const recommendedTypes = new Set(ticket.next_action.map((action) => action.type));
   const fallbackState = ticket.analysis_used_fallback ? describeFallbackState(ticket) : null;
   const validationPath = describeValidationPath(ticket);
+  const analysisModeLabel = ticket.analysis_used_fallback
+    ? "本次分析已回退为规则/演示分析"
+    : "本次分析来自真实 AI";
 
   return (
     <aside className="agent panel">
@@ -178,6 +181,7 @@ export function AgentPanel({
             </div>
           </div>
           <h3>AI问题摘要</h3>
+          <p className="agent-subnote">{analysisModeLabel}</p>
           <p>{ticket.ai_question_summary}</p>
           {ticket.customer_intent_summary ? (
             <p className="agent-subnote">客户意图：{ticket.customer_intent_summary}</p>

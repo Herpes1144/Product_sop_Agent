@@ -4,6 +4,43 @@ import { requestAiHealth } from "../lib/ai-client";
 import { useSandbox } from "../lib/sandbox-context";
 import type { AiProviderHealth } from "../types/ai";
 
+function describeHealth(health: AiProviderHealth | null) {
+  if (!health) {
+    return {
+      label: "AI 状态检查中",
+      className: "app-nav__ai-status",
+      title: "正在检查 AI 服务状态。"
+    };
+  }
+
+  switch (health.status) {
+    case "ready":
+      return {
+        label: "真实AI已连接",
+        className: "app-nav__ai-status app-nav__ai-status--ready",
+        title: health.message
+      };
+    case "missing_config":
+      return {
+        label: "AI 未配置",
+        className: "app-nav__ai-status app-nav__ai-status--fallback",
+        title: health.message
+      };
+    case "unreachable":
+      return {
+        label: "AI 服务不可用",
+        className: "app-nav__ai-status app-nav__ai-status--fallback",
+        title: health.message
+      };
+    default:
+      return {
+        label: "AI 连接异常",
+        className: "app-nav__ai-status app-nav__ai-status--fallback",
+        title: health.message
+      };
+  }
+}
+
 export function AppNav() {
   const location = useLocation();
   const { resetSandbox } = useSandbox();
@@ -13,6 +50,7 @@ export function AppNav() {
   useEffect(() => {
     if (runtimeMode === "test") {
       setHealth({
+        status: "missing_config",
         configured: false,
         reachable: false,
         provider: "dashscope",
@@ -33,11 +71,12 @@ export function AppNav() {
       .catch(() => {
         if (!cancelled) {
           setHealth({
+            status: "degraded",
             configured: false,
             reachable: false,
             provider: "dashscope",
             model: "qwen-plus",
-            message: "AI 代理不可用，当前仅可使用规则兜底。"
+            message: "AI 健康检查请求失败，当前只能使用本地规则兜底。"
           });
         }
       });
@@ -47,7 +86,7 @@ export function AppNav() {
     };
   }, [runtimeMode]);
 
-  const isRealAiReady = health?.configured && health?.reachable;
+  const healthDisplay = describeHealth(health);
 
   function handleResetSandbox() {
     if (!window.confirm("确认重置演示数据吗？当前客户端与工作台的投诉、聊天、附件和处理记录都会恢复到初始状态。")) {
@@ -65,18 +104,10 @@ export function AppNav() {
       </div>
       <div className="app-nav__meta">
         <span
-          className={
-            isRealAiReady
-              ? "app-nav__ai-status app-nav__ai-status--ready"
-              : "app-nav__ai-status app-nav__ai-status--fallback"
-          }
-          title={health?.message ?? "AI 状态检查中"}
+          className={healthDisplay.className}
+          title={healthDisplay.title}
         >
-          {health
-            ? isRealAiReady
-              ? "真实AI已连接"
-              : "真实AI未连接"
-            : "AI 状态检查中"}
+          {healthDisplay.label}
         </span>
         <nav className="app-nav__links" aria-label="页面切换">
           <Link

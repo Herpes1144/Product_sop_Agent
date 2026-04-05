@@ -59,7 +59,10 @@ export interface GenerateReplyRequest {
   fallbackText?: string;
 }
 
+export type AiProviderStatus = "ready" | "missing_config" | "unreachable" | "degraded";
+
 export interface AiProviderHealth {
+  status: AiProviderStatus;
   configured: boolean;
   reachable: boolean;
   provider: "dashscope";

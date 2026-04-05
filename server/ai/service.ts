@@ -1,13 +1,13 @@
-import { actionDefinitionMap } from "../../src/mock/action-map";
-import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base";
-import type { AiAnalysisResult, ReplySuggestionResult } from "../../src/types/ai";
-import type { ComplaintTicket, NextActionType } from "../../src/types/workbench";
+import { actionDefinitionMap } from "../../src/mock/action-map.js";
+import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base.js";
+import type { AiAnalysisResult, ReplySuggestionResult } from "../../src/types/ai.js";
+import type { ComplaintTicket, NextActionType } from "../../src/types/workbench.js";
 import {
   buildFallbackAnalysis,
   fallbackReplySuggestion,
   finalizeAnalysisResult
-} from "./fallbacks";
-import { completeJsonObject, ProviderError } from "./provider";
+} from "./fallbacks.js";
+import { completeJsonObject, ProviderError } from "./provider.js";
 
 function summarizeAttachments(ticket: ComplaintTicket): string {
   if (ticket.attachment_list.length === 0) {

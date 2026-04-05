@@ -32,6 +32,13 @@ describe("质量投诉分流工作台", () => {
     expect(scrollToMock).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
   });
 
+  it("测试环境会真实显示 AI 未配置，而不是伪装成已连接", () => {
+    renderWorkbench();
+
+    expect(screen.getByText("AI 未配置")).toBeInTheDocument();
+    expect(screen.queryByText("真实AI已连接")).not.toBeInTheDocument();
+  });
+
   it("切换工单后会刷新原始信息和 Agent 区", async () => {
     const user = userEvent.setup();
 

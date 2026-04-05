@@ -1,13 +1,13 @@
-import { actionDefinitionMap } from "../../src/mock/action-map";
-import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base";
+import { actionDefinitionMap } from "../../src/mock/action-map.js";
+import { buildKnowledgeSnippets } from "../../src/mock/knowledge-base.js";
 import type {
   AiAnalysisResult,
   AnalysisFallbackReason,
   AttachmentMatchJudgement,
   ReplySuggestionResult,
   RecommendedResultType
-} from "../../src/types/ai";
-import type { ComplaintTicket, NextActionType } from "../../src/types/workbench";
+} from "../../src/types/ai.js";
+import type { ComplaintTicket, NextActionType } from "../../src/types/workbench.js";
 
 const actionTypes = Object.keys(actionDefinitionMap) as NextActionType[];
 

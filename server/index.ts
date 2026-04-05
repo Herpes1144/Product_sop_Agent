@@ -6,9 +6,7 @@ import {
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { config as loadEnv } from "dotenv";
-import { analyzeTicketWithAi, generateReplyWithAi } from "./ai/service";
-import { getProviderHealth } from "./ai/provider";
-import type { GenerateReplyRequest, AnalyzeTicketRequest } from "../src/types/ai";
+import { handleApiRequest } from "./http/router.js";
 
 const localEnvPath = resolve(process.cwd(), ".env.local");
 const defaultEnvPath = resolve(process.cwd(), ".env");
@@ -71,57 +69,18 @@ createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/api/ai/health") {
-    const health = await getProviderHealth();
-    sendJson(response, 200, health);
-    return;
+  try {
+    const body =
+      request.method === "GET" || request.method === "HEAD"
+        ? {}
+        : await readRequestBody(request);
+    const result = await handleApiRequest(request.method || "GET", url.pathname, body);
+    sendJson(response, result.statusCode, result.payload);
+  } catch (error) {
+    sendJson(response, 500, {
+      message: error instanceof Error ? error.message : "Unexpected API error."
+    });
   }
-
-  if (request.method === "POST" && url.pathname === "/api/ai/analyze-ticket") {
-    try {
-      const body = (await readRequestBody(request)) as AnalyzeTicketRequest;
-
-      if (!body?.ticket) {
-        sendJson(response, 400, { message: "Missing ticket payload." });
-        return;
-      }
-
-      const result = await analyzeTicketWithAi(body.ticket);
-      sendJson(response, 200, result);
-      return;
-    } catch (error) {
-      sendJson(response, 500, {
-        message: error instanceof Error ? error.message : "Analyze request failed."
-      });
-      return;
-    }
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/ai/generate-reply") {
-    try {
-      const body = (await readRequestBody(request)) as GenerateReplyRequest;
-
-      if (!body?.ticket || !body?.actionType) {
-        sendJson(response, 400, { message: "Missing reply generation payload." });
-        return;
-      }
-
-      const result = await generateReplyWithAi(
-        body.ticket,
-        body.actionType,
-        body.fallbackText
-      );
-      sendJson(response, 200, result);
-      return;
-    } catch (error) {
-      sendJson(response, 500, {
-        message: error instanceof Error ? error.message : "Reply request failed."
-      });
-      return;
-    }
-  }
-
-  sendJson(response, 404, { message: "Not found." });
 }).listen(PORT, () => {
   console.log(`AI proxy server listening on http://127.0.0.1:${PORT}`);
 });
